@@ -10,17 +10,17 @@ Literal_Token literal_tokens[] = {
     {.text = ")", .kind = TOKEN_PARENTHESIS_CLOSE},
     {.text = "{", .kind = TOKEN_CURLY_OPEN},
     {.text = "}", .kind = TOKEN_CURLY_CLOSE},
-    {.text = ";", .kind = TOKEN_SEMICOLON},
+    {.text = ";", .kind = TOKEN_EOL},
 };
 
 const char *keywords[] = {
-    "immut",    "const", "string", "char",   "float16", "float32", "float64",
-    "float128", "uint8", "uint16", "uint32", "uint64",  "uint128", "int8",
-    "int16",    "int32", "int64",  "int128", "void",    "enum",    "break",
-    "continue", "while", "for",    "repeat", "until",   "import",  "from",
-    "as",       "xor",   "xnor",   "nand",   "nor",     "sizeof",  "typeof",
-    "if",       "else",  "elseif", "func",   "default", "case",    "extern",
-    "private"};
+    "type",    "immut",    "const",  "string", "char",   "float16", "float32",
+    "float64", "float128", "uint8",  "uint16", "uint32", "uint64",  "uint128",
+    "int8",    "int16",    "int32",  "int64",  "int128", "void",    "enum",
+    "break",   "continue", "while",  "for",    "repeat", "until",   "import",
+    "from",    "as",       "xor",    "xnor",   "nand",   "nor",     "or",
+    "and",     "sizeof",   "typeof", "if",     "else",   "elseif",  "func",
+    "default", "case",     "extern", "private"};
 
 #define literal_tokens_count                                                   \
   (sizeof(literal_tokens) / sizeof(literal_tokens[0]))
@@ -103,7 +103,6 @@ Token lexer_next(Lexer *l) {
   if (l->content[l->cursor] == '=') {
     tok.value_len++;
     if (l->content[l->cursor + 1] == '=') {
-      NEY_WARN("this is a double eq");
       tok.type = TOKEN_ISEQ;
       tok.value_len++;
       l->cursor++;
