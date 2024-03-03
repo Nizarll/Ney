@@ -52,6 +52,10 @@ typedef struct Lexer {
   uint32_t bol;
 } Lexer;
 
+typedef struct {
+  Token *tokens;
+} Lexem;
+
 const char *get_token_name(Token_Type token_type);
 Lexer lexer_init(const char *content, uint32_t content_len);
 Token lexer_next(Lexer *lexer);

@@ -10,7 +10,6 @@ typedef enum {
   FUNCTION,
   STRING,
   CHAR,
-
 } Base_Type;
 
 typedef enum {
@@ -38,21 +37,21 @@ typedef struct Node {
 
     struct {
       Token_Type op;
-      Node *left;
-      Node *right;
+      struct Node *left;
+      struct Node *right;
     } expression;
 
     struct {
       Statement_Type type;
-      Node *args;
-      Node *condition;
-      Node *body;
+      struct Node *args;
+      struct Node *condition;
+      struct Node *body;
     } statement;
 
     struct {
       Base_Type type;
       char *name;
-      Node *value;
+      struct Node *value;
     } declaration;
 
     //    struct {
@@ -66,13 +65,21 @@ typedef struct Node {
     //    struct {
     //
     //    } operation;
+    //
   };
 
 } Node;
 
 typedef struct {
-  Node body;
+  Node *body;
+  Lexem *lexem;
+  Node curr_node;
 } Program;
 
-#endif // PARSER_H
+Program *program_init(Lexem *lexem);
+void parse_func(Program *program);
+void parse_arrow_func(Program *program);
+void parse_expression(Program *program);
+void parse_statement(Program *program);
 
+#endif // PARSER_H
