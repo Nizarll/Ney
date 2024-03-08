@@ -1,9 +1,13 @@
 #include "../libs/lexer.h"
 
 typedef struct {
-  Token_Type kind;
+  Token_Kind kind;
   const char *text;
 } Literal_Token;
+
+typedef struct Lexem {
+  Token *tokens;
+} Lexem;
 
 Literal_Token literal_tokens[] = {
     {.text = "(", .kind = TOKEN_PARENTHESIS_OPEN},
@@ -26,7 +30,7 @@ const char *keywords[] = {
   (sizeof(literal_tokens) / sizeof(literal_tokens[0]))
 #define keywords_count (sizeof(keywords) / sizeof(keywords[0]))
 
-const char *get_token_name(Token_Type token_type) {
+const char *get_token_name(Token_Kind token_type) {
   switch (token_type) {
   case TOKEN_EOL:
     return "END OF LINE";
@@ -34,6 +38,10 @@ const char *get_token_name(Token_Type token_type) {
     return "TOKEN_E0F";
   case TOKEN_STRING:
     return "TOKEN STRING";
+  case TOKEN_NUMBER:
+    return "TOKEN NUMBER";
+  case TOKEN_OP:
+    return "TOKEN OPERATOR";
   case TOKEN_GREATER:
     return "TOKEN_GREATER";
   case TOKEN_SMALLER:
@@ -57,7 +65,6 @@ const char *get_token_name(Token_Type token_type) {
 
 bool is_symbol_start(char x) { return isalpha(x) || x == '_'; }
 bool is_symbol(char x) { return isalnum(x) || x == '_'; }
-
 void lexer_trim_left(Lexer *l) {
   while (l->cursor < l->content_len && isspace(l->content[l->cursor])) {
     if (l->cursor > l->content_len)
@@ -82,37 +89,71 @@ Token lexer_next(Lexer *l) {
 
   if (l->content[l->cursor] == '"') {
     tok.type = TOKEN_STRING;
-    tok.value_len++;
-    l->cursor++;
+    tok.value_len += 1;
+    l->cursor += 1;
     while (l->cursor < l->content_len && l->content[l->cursor] != '"') {
-      tok.value_len++;
-      l->cursor++;
+      tok.value_len += 1;
+      l->cursor += 1;
     }
-    tok.value_len++;
-    l->cursor++;
+    tok.value_len += 1;
+    l->cursor += 1;
     return tok;
   }
 
   if (l->content[l->cursor] == ';') {
     tok.type = TOKEN_EOL;
     tok.value_len = 1;
-    l->cursor++;
+    l->cursor += 1;
     return tok;
   }
-
+  if (l->content[l->cursor] == '+' || l->content[l->cursor] == '-' ||
+      l->content[l->cursor] == '*' || l->content[l->cursor] == '/') {
+    tok.type = TOKEN_OP;
+    tok.value_len = 1;
+    l->cursor += 1;
+    return tok;
+  }
   if (l->content[l->cursor] == '=') {
     tok.value_len++;
-    if (l->content[l->cursor + 1] == '=') {
+    if (l->cursor + 1 < l->content_len && l->content[l->cursor + 1] == '=') {
       tok.type = TOKEN_ISEQ;
-      tok.value_len++;
-      l->cursor++;
+      tok.value_len += 1;
+      l->cursor += 1;
     } else {
       tok.type = TOKEN_EQUAL;
     }
-    l->cursor++;
+    l->cursor += 1;
     return tok;
   }
-
+  if (isdigit(l->content[l->cursor])) {
+    tok.type = TOKEN_NUMBER;
+    if (l->content[l->cursor] == '0' && l->cursor + 1 < l->content_len &&
+        l->content[l->cursor + 1] == 'x') {
+      if (l->cursor + 1 > l->content_len) {
+        tok.type = TOKEN_INVALID;
+        tok.value_len += 1;
+        l->cursor += 1;
+        return tok;
+      }
+      if (!(is_symbol(l->content[l->cursor + 1]) ||
+            isdigit(l->content[l->cursor + 1]))) {
+        tok.type = TOKEN_INVALID;
+        tok.value_len += 1;
+        l->cursor += 1;
+        return tok;
+      }
+      while (l->cursor < l->content_len && is_symbol(l->content[l->cursor])) {
+        l->cursor += 1;
+        tok.value_len += 1;
+      }
+      return tok;
+    }
+    while (l->cursor < l->content_len && isdigit(l->content[l->cursor])) {
+      l->cursor += 1;
+      tok.value_len += 1;
+    }
+    return tok;
+  }
   if (is_symbol_start(l->content[l->cursor])) {
     tok.type = TOKEN_SYMBOL;
     while (l->cursor < l->content_len && is_symbol(l->content[l->cursor])) {

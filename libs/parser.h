@@ -10,7 +10,7 @@ typedef enum {
   FUNCTION,
   STRING,
   CHAR,
-} Base_Type;
+} Type;
 
 typedef enum {
   PROGRAM,
@@ -21,35 +21,35 @@ typedef enum {
   FUNCTION_CALL,
   ASSIGNMENT,
   OPERATION, // i += , i != , i /= , i %= , i &= , i |= etc i++, i--
-} Node_Type;
+} Node_Kind;
 
 typedef enum {
   IF,
   LOOP,
   CALL,
   RETURN,
-} Statement_Type;
+} Statement_Kind;
 
 typedef struct Node {
-  Node_Type type;
+  Node_Kind type;
 
   union {
 
     struct {
-      Token_Type op;
+      Token_Kind op;
       struct Node *left;
       struct Node *right;
     } expression;
 
     struct {
-      Statement_Type type;
+      Statement_Kind type;
       struct Node *args;
       struct Node *condition;
       struct Node *body;
     } statement;
 
     struct {
-      Base_Type type;
+      Type type;
       char *name;
       struct Node *value;
     } declaration;
@@ -72,11 +72,9 @@ typedef struct Node {
 
 typedef struct {
   Node *body;
-  Lexem *lexem;
   Node curr_node;
 } Program;
 
-Program *program_init(Lexem *lexem);
 void parse_func(Program *program);
 void parse_arrow_func(Program *program);
 void parse_expression(Program *program);

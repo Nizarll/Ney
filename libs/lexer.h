@@ -22,7 +22,8 @@
 
 typedef enum TOKEN_TYPE {
   TOKEN_EOF = 0, // done
-  TOKEN_EOL,     // done
+  TOKEN_EOL,     // to be reworked
+  TOKEN_OP,
   TOKEN_GREATER,
   TOKEN_SMALLER,
   TOKEN_EQUAL, // done
@@ -31,15 +32,16 @@ typedef enum TOKEN_TYPE {
   TOKEN_CURLY_CLOSE,
   TOKEN_PARENTHESIS_OPEN,
   TOKEN_PARENTHESIS_CLOSE,
+  TOKEN_NUMBER,
   TOKEN_SYMBOL, // done
   TOKEN_KEYWORD,
   TOKEN_CHAR,   // maybe done
   TOKEN_STRING, // done
   TOKEN_INVALID // done
-} Token_Type;
+} Token_Kind;
 
 typedef struct Token {
-  Token_Type type;
+  Token_Kind type;
   const char *value;
   uint8_t value_len;
 } Token;
@@ -52,11 +54,9 @@ typedef struct Lexer {
   uint32_t bol;
 } Lexer;
 
-typedef struct {
-  Token *tokens;
-} Lexem;
+typedef struct Lexem lexem;
 
-const char *get_token_name(Token_Type token_type);
+const char *get_token_name(Token_Kind token_type);
 Lexer lexer_init(const char *content, uint32_t content_len);
 Token lexer_next(Lexer *lexer);
 
