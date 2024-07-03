@@ -16,7 +16,6 @@
     printf(ANSI_COLOR_RED "[✘] | " msg ANSI_COLOR_RESET "\n", ##__VA_ARGS__);  \
     exit(1);                                                                   \
   } while (0)
-
 #define NEY_WARN(msg, ...)                                                     \
   printf(ANSI_COLOR_YELLOW "[!] | " msg ANSI_COLOR_RESET "\n", ##__VA_ARGS__)
 
@@ -38,10 +37,10 @@ typedef enum TOKEN_TYPE {
   TOKEN_CHAR,   // maybe done
   TOKEN_STRING, // done
   TOKEN_INVALID // done
-} Token_Kind;
+} TokenKind;
 
 typedef struct Token {
-  Token_Kind type;
+  TokenKind type;
   const char *value;
   uint8_t value_len;
 } Token;
@@ -54,10 +53,44 @@ typedef struct Lexer {
   uint32_t bol;
 } Lexer;
 
-typedef struct Lexem lexem;
+typedef struct Type {
+  enum { t_arr, t_fn, t_int, t_float, t_string } variant;
+  union {
+    struct {
+      struct Type *elem;
+    } case_arr;
+    struct {
+      struct Type **args;
+      struct Type *ret;
+      size_t nArgs;
+    } case_fn;
+  };
+} Type;
 
-const char *get_token_name(Token_Kind token_type);
+struct Ast {
+  enum {
+    lit = 0,
+    binop,
+    unop,
+    expr,
+    ident,
+    string,
+    number,
+    if_st,
+    loop
+  } variant;
+  Token tok;
+  Type type;
+  struct Ast *kid1, *kid2;
+};
+
+typedef struct Ast Ast;
+typedef struct Lexem Lexem;
+
+char *get_token_name(TokenKind token_type);
+char *get_ast_node_name(Ast *node);
 Lexer lexer_init(const char *content, uint32_t content_len);
 Token lexer_next(Lexer *lexer);
-
+Ast *parse(Lexem *lexem);
+Ast parse_at(Ast *list, Lexem *lexem, size_t i);
 #endif // LEXER_H
