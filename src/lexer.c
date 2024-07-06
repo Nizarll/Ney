@@ -2,15 +2,11 @@
 #include <stdlib.h>
 
 /*  TODO: ADD ERROR SYSTEM */
+/* TODO: Implement types for each expression */
 typedef struct {
   TokenKind kind;
   const char *text;
 } Literal_Token;
-
-typedef struct Lexem {
-  Token *tokens;
-  size_t len;
-} Lexem;
 
 Literal_Token literal_tokens[] = {
     {.text = "(", .kind = TOKEN_PARENTHESIS_OPEN},
@@ -32,17 +28,6 @@ const char *keywords[] = {
 #define literal_tokens_count                                                   \
   (sizeof(literal_tokens) / sizeof(literal_tokens[0]))
 #define keywords_count (sizeof(keywords) / sizeof(keywords[0]))
-
-char *get_ast_node_name(Ast *node) {
-  switch (node->variant) {
-  case lit:
-    return "AST_NODE LITERAL";
-  case expr:
-    return "AST_NODE EXPRESSION";
-  default:
-    return "TOKEN NOT FOUND";
-  }
-}
 
 char *get_token_name(TokenKind token_type) {
   switch (token_type) {
@@ -85,59 +70,6 @@ void lexer_trim_left(Lexer *l) {
       NEY_ERR("ERROR DURING COMPILATION TIME");
     l->cursor++;
   }
-}
-
-/*
-
-  typedef struct Type {
-   enum { t_arr, t_fn, t_int, t_float, t_string, ..etc } variant;
-   union {
-     struct {
-       struct Type *elem;
-     } case_arr;
-     struct {
-       struct Type **args;
-       struct Type *ret;
-       size_t nArgs;
-     } case_fn;
-   }
- } Type;
-
- typedef struct Ast {
-   enum { lit, binop, unop, expr, ident, string, number, if_st, loop }
-   variant; Token tok; Type type; size_t klen; struct Ast kids[];
- } Ast;
-
- typedef struct Lexem lexem */
-
-Ast parse_at(Ast *as_nodes, Lexem *lexem, size_t i) {
-  if (lexem->tokens[i].type == TOKEN_NUMBER) {
-    return (Ast){
-        .variant = lit,
-        .tok = lexem->tokens[i],
-        .type = {},
-    };
-  }
-  char op = lexem->tokens[i].value[0];
-  if (lexem->tokens[i].type == TOKEN_OP) {
-    if (i <= 0) {
-      printf("syntax error on arithmetic operation!");
-      exit(EXIT_FAILURE);
-    }
-    if (lexem->tokens[i - 1].type == TOKEN_NUMBER) {
-      as_nodes[i + 1] = parse_at(as_nodes, lexem, i + 1);
-      Ast node = (Ast){
-          .variant = expr,
-          .tok = lexem->tokens[i],
-          .type = (Type){},
-          .kid1 = &as_nodes[i - 1],
-          .kid2 = &as_nodes[i + 1],
-      };
-      return node;
-    }
-    return (Ast){};
-  }
-  return (Ast){};
 }
 
 Lexer lexer_init(const char *content, uint32_t content_len) {

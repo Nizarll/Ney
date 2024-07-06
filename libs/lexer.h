@@ -53,44 +53,15 @@ typedef struct Lexer {
   uint32_t bol;
 } Lexer;
 
-typedef struct Type {
-  enum { t_arr, t_fn, t_int, t_float, t_string } variant;
-  union {
-    struct {
-      struct Type *elem;
-    } case_arr;
-    struct {
-      struct Type **args;
-      struct Type *ret;
-      size_t nArgs;
-    } case_fn;
-  };
-} Type;
+typedef struct Lexem {
+  Token *tokens;
+  uint32_t len;
+  uint32_t size;
+} Lexem;
 
-struct Ast {
-  enum {
-    lit = 0,
-    binop,
-    unop,
-    expr,
-    ident,
-    string,
-    number,
-    if_st,
-    loop
-  } variant;
-  Token tok;
-  Type type;
-  struct Ast *kid1, *kid2;
-};
-
-typedef struct Ast Ast;
 typedef struct Lexem Lexem;
 
 char *get_token_name(TokenKind token_type);
-char *get_ast_node_name(Ast *node);
 Lexer lexer_init(const char *content, uint32_t content_len);
 Token lexer_next(Lexer *lexer);
-Ast *parse(Lexem *lexem);
-Ast parse_at(Ast *list, Lexem *lexem, size_t i);
 #endif // LEXER_H

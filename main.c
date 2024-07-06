@@ -1,13 +1,8 @@
 #include "libs/lexer.h"
+#include "libs/parser.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-typedef struct Lexem {
-  Token *tokens;
-  uint32_t len;
-  uint32_t size;
-} Lexem;
 
 Lexem generate_lexem(const char *text) {
   Lexer lexer = lexer_init(text, strlen(text));
@@ -37,17 +32,15 @@ Lexem generate_lexem(const char *text) {
   return lexem;
 }
 
-void deconstruct_lexem(struct Lexem *lexem) { free(lexem->tokens); }
+void deconstruct_lexem(Lexem *lexem) { free(lexem->tokens); }
 
 int main(void) {
   const char *text_to_compile = "1 + 1 + 1 + 1";
   Lexem lexem = generate_lexem(text_to_compile);
-  Ast biglist[1024];
-  for (int i = 0; i < lexem.len; i++) {
-    Ast a = parse_at(biglist, &lexem, i);
-    printf("variant is : %s\n", get_ast_node_name(&a));
-    biglist[i] = a;
-  }
+  Parser *p = parser_new((Parser){.lexem = &lexem});
+  Ast *node = parser_parse_expr(p);
+  parser_dump_expr(node);
   deconstruct_lexem(&lexem);
+  free(p);
   return 0;
 }

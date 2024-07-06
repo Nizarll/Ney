@@ -1,83 +1,71 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "./lexer.h"
+#define null (void *)0x00
 
-typedef enum {
-  INT,
-  UINT,
-  FLOAT,
-  FUNCTION,
-  STRING,
-  CHAR,
+#include "./lexer.h"
+#include <stdbool.h>
+
+typedef struct Type {
+  enum {
+    t_arr,
+    t_fn,
+    t_int,
+    t_float,
+    t_string,
+  } variant;
+  union {
+    struct {
+      struct Type *elem;
+    } case_arr;
+    struct {
+      struct Type **args;
+      struct Type *ret;
+      size_t nArgs;
+    } case_fn;
+  };
 } Type;
 
-typedef enum {
-  PROGRAM,
-  STATEMENT,
-  DEC,
-  FUNCTION_DEC,
-  ARR_FUNCTION_DEC,
-  FUNCTION_CALL,
-  ASSIGNMENT,
-  OPERATION, // i += , i != , i /= , i %= , i &= , i |= etc i++, i--
-} Node_Kind;
-
-typedef enum {
-  IF,
-  LOOP,
-  CALL,
-  RETURN,
-} Statement_Kind;
-
-typedef struct Node {
-  Node_Kind type;
-
+struct Ast {
+  enum {
+    lit,
+    binop,
+    unop,
+    expr,
+    ident,
+    string,
+    number,
+    if_st,
+    loop,
+    var_len
+  } variant;
   union {
-
     struct {
-      Token_Kind op;
-      struct Node *left;
-      struct Node *right;
-    } expression;
-
-    struct {
-      Statement_Kind type;
-      struct Node *args;
-      struct Node *condition;
-      struct Node *body;
-    } statement;
-
-    struct {
-      Type type;
-      char *name;
-      struct Node *value;
-    } declaration;
-
-    //    struct {
-    //
-    //    } func_declaration;
-    //
-    //    struct {
-    //
-    //    } arr_func_declaration;
-    //
-    //    struct {
-    //
-    //    } operation;
-    //
+      struct Ast *lhs;
+      struct Ast *rhs;
+    };
+    int val;
   };
+  Token tok;
+  Type type;
+};
 
-} Node;
+struct Parser {
+  struct Ast *nodes;
+  Lexem *lexem;
+  uint32_t len;
+  uint32_t node;
+  uint32_t cursor; // NOTE: current token
+  uint32_t line;
+  uint32_t bol;
+  // TODO: ADD ERRORS
+};
 
-typedef struct {
-  Node *body;
-  Node curr_node;
-} Program;
+typedef struct Parser Parser;
+typedef struct Ast Ast;
 
-void parse_func(Program *program);
-void parse_arrow_func(Program *program);
-void parse_expression(Program *program);
-void parse_statement(Program *program);
-
+char *get_ast_node_name(Ast *node);
+Ast *parser_parse_expr(Parser *p);
+Parser *parser_new(Parser p);
+void parser_dump_expr(Ast *node);
 #endif // PARSER_H
