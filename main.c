@@ -6,7 +6,7 @@
 
 Lexem generate_lexem(const char *text) {
   Lexer lexer = lexer_init(text, strlen(text));
-  struct Lexem lexem;
+  Lexem lexem;
   lexem.len = 0;
   lexem.tokens = (struct Token *)malloc(5 * sizeof(struct Token));
   lexem.size = 5;
@@ -33,13 +33,22 @@ Lexem generate_lexem(const char *text) {
 }
 
 void deconstruct_lexem(Lexem *lexem) { free(lexem->tokens); }
+void free_ast(Ast *ast) {
+  if (ast->variant == expr && ast->rhs) {
+    free_ast(ast->lhs);
+  } 
+  if (ast->variant == expr && ast->rhs) {
+    free_ast(ast->rhs);
+  }
+  free(ast);
+}
 
 int main(void) {
-  const char *text_to_compile = "1 + 1 + 1 + 1";
+  const char *text_to_compile = "string s = \"hello\"";
   Lexem lexem = generate_lexem(text_to_compile);
   Parser *p = parser_new((Parser){.lexem = &lexem});
-  Ast *node = parser_parse_expr(p);
-  parser_dump_expr(node);
+  parser_parse(p);
+  //parser_dump_expr(node);
   deconstruct_lexem(&lexem);
   free(p);
   return 0;

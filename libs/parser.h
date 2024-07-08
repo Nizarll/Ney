@@ -6,13 +6,28 @@
 #include "./lexer.h"
 #include <stdbool.h>
 
-typedef struct Type {
+#define DECLTYPE(x) x, ptr_##x
+
+struct Type {
   enum {
-    t_arr,
-    t_fn,
-    t_int,
-    t_float,
-    t_string,
+    DECLTYPE(t_arr),
+    DECLTYPE(t_fn),
+    DECLTYPE(t_i8),
+    DECLTYPE(t_i16),
+    DECLTYPE(t_i32),
+    DECLTYPE(t_i64),
+    DECLTYPE(t_i128),
+    DECLTYPE(t_u8),
+    DECLTYPE(t_u16),
+    DECLTYPE(t_u32),
+    DECLTYPE(t_u64),
+    DECLTYPE(t_u128),
+    DECLTYPE(t_f16),
+    DECLTYPE(t_f32),
+    DECLTYPE(t_f64),
+    DECLTYPE(t_f128),
+    DECLTYPE(t_string),
+    DECLTYPE(t_char),
   } variant;
   union {
     struct {
@@ -24,7 +39,7 @@ typedef struct Type {
       size_t nArgs;
     } case_fn;
   };
-} Type;
+};
 
 struct Ast {
   enum {
@@ -32,6 +47,7 @@ struct Ast {
     binop,
     unop,
     expr,
+    decl,
     ident,
     string,
     number,
@@ -39,6 +55,8 @@ struct Ast {
     loop,
     var_len
   } variant;
+  Token tok;
+  struct Type type;
   union {
     struct {
       struct Ast *lhs;
@@ -46,8 +64,6 @@ struct Ast {
     };
     int val;
   };
-  Token tok;
-  Type type;
 };
 
 struct Parser {
@@ -61,11 +77,26 @@ struct Parser {
   // TODO: ADD ERRORS
 };
 
-typedef struct Parser Parser;
+
+struct Symbol {
+  Token tok;
+  struct Type type;
+}; // variables declared
+
+struct Ns {
+  struct Symbol* symbols;
+};
+
+typedef struct Ns Ns;
 typedef struct Ast Ast;
+typedef struct Type Type;
+typedef struct Symbol Symbol;
+typedef struct Parser Parser;
 
 char *get_ast_node_name(Ast *node);
 Ast *parser_parse_expr(Parser *p);
+Ast* parser_parse_decl(Parser *p);
 Parser *parser_new(Parser p);
+void parser_parse(Parser *p);
 void parser_dump_expr(Ast *node);
 #endif // PARSER_H

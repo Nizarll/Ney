@@ -8,27 +8,6 @@ typedef struct {
   const char *text;
 } Literal_Token;
 
-Literal_Token literal_tokens[] = {
-    {.text = "(", .kind = TOKEN_PARENTHESIS_OPEN},
-    {.text = ")", .kind = TOKEN_PARENTHESIS_CLOSE},
-    {.text = "{", .kind = TOKEN_CURLY_OPEN},
-    {.text = "}", .kind = TOKEN_CURLY_CLOSE},
-    {.text = ";", .kind = TOKEN_EOL},
-};
-
-const char *keywords[] = {
-    "type",    "immut",    "const",  "string", "char",   "float16", "float32",
-    "float64", "float128", "uint8",  "uint16", "uint32", "uint64",  "uint128",
-    "int8",    "int16",    "int32",  "int64",  "int128", "void",    "enum",
-    "break",   "continue", "while",  "for",    "repeat", "until",   "import",
-    "from",    "as",       "xor",    "xnor",   "nand",   "nor",     "or",
-    "and",     "sizeof",   "typeof", "if",     "else",   "elseif",  "func",
-    "default", "case",     "extern", "private"};
-
-#define literal_tokens_count                                                   \
-  (sizeof(literal_tokens) / sizeof(literal_tokens[0]))
-#define keywords_count (sizeof(keywords) / sizeof(keywords[0]))
-
 char *get_token_name(TokenKind token_type) {
   switch (token_type) {
   case TOKEN_EOL:

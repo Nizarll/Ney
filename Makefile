@@ -1,5 +1,5 @@
-flags = -Wextra -Rsanitize-address
-cc = clang
+flags = -Wextra -g3 #-fsanitize=address
+cc = gcc
 
 all:
 	$(cc) -c src/lexer.c -o obj/lexer.o $(flags)
