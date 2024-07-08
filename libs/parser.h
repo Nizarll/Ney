@@ -77,9 +77,9 @@ struct Parser {
   // TODO: ADD ERRORS
 };
 
-
 struct Symbol {
   Token tok;
+  const char* val;
   struct Type type;
 }; // variables declared
 
