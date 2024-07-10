@@ -1,33 +1,33 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#define null (void *)0x00
-
+#include "./error.h"
 #include "./lexer.h"
 #include <stdbool.h>
+#include <string.h>
 
-#define DECLTYPE(x) x, ptr_##x
+#define NEY_REALLOC_STEP 128
+#define TYPES($) $(i8), $(i16), $(i32), $(i64), $(i128), \
+                $(u8), $(u16), $(u32), $(u128),           \
+                $(f16), $(f32), $(f64), $(f128),           \
+                $(str), $(char)
+#define NOP($) $
+#define PREFIX(B, A) B##A
+#define PTR_PREFIX(T) PREFIX(ptr_,T)
+#define DECLTYPE(x) _DECLTYPE(x)
+#define _DECLTYPE(x) T_PREFIX(x), PTR_PREFIX(x)
+#define T_PREFIX(T) PREFIX(t_,T)
+#define STRING(t) #t
+#define STRUCT($) (type_t) {STRING($), T_PREFIX($)}
+
+typedef struct {
+  const char *str_val;
+  size_t val;
+} type_t;
 
 struct Type {
   enum {
-    DECLTYPE(t_arr),
-    DECLTYPE(t_fn),
-    DECLTYPE(t_i8),
-    DECLTYPE(t_i16),
-    DECLTYPE(t_i32),
-    DECLTYPE(t_i64),
-    DECLTYPE(t_i128),
-    DECLTYPE(t_u8),
-    DECLTYPE(t_u16),
-    DECLTYPE(t_u32),
-    DECLTYPE(t_u64),
-    DECLTYPE(t_u128),
-    DECLTYPE(t_f16),
-    DECLTYPE(t_f32),
-    DECLTYPE(t_f64),
-    DECLTYPE(t_f128),
-    DECLTYPE(t_string),
-    DECLTYPE(t_char),
+    TYPES(DECLTYPE),
   } variant;
   union {
     struct {
@@ -39,6 +39,13 @@ struct Type {
       size_t nArgs;
     } case_fn;
   };
+};
+
+static char *str_types[] = {
+  TYPES(STRING),
+};
+static type_t type_pairs[] = {
+  TYPES(STRUCT),
 };
 
 struct Ast {
@@ -66,9 +73,23 @@ struct Ast {
   };
 };
 
+struct Symbol {
+  Token tok;
+  const char *val;
+  struct Type type;
+  size_t len;
+}; // variables declared
+
+struct Ns {
+  struct Symbol *symbols;
+  size_t sym_len;
+  size_t sym_occ;
+};
+
 struct Parser {
+  struct Ns *nsp;
   struct Ast *nodes;
-  Lexem *lexem;
+  struct Lexem *lexem;
   uint32_t len;
   uint32_t node;
   uint32_t cursor; // NOTE: current token
@@ -77,26 +98,27 @@ struct Parser {
   // TODO: ADD ERRORS
 };
 
-struct Symbol {
-  Token tok;
-  const char* val;
-  struct Type type;
-}; // variables declared
-
-struct Ns {
-  struct Symbol* symbols;
-};
-
 typedef struct Ns Ns;
 typedef struct Ast Ast;
 typedef struct Type Type;
 typedef struct Symbol Symbol;
 typedef struct Parser Parser;
 
+Parser *parser_new(Parser p);
+Ns *ns_new(Ns nsp);
 char *get_ast_node_name(Ast *node);
 Ast *parser_parse_expr(Parser *p);
-Ast* parser_parse_decl(Parser *p);
-Parser *parser_new(Parser p);
+Ast *parser_parse_decl(Parser *p);
 void parser_parse(Parser *p);
 void parser_dump_expr(Ast *node);
+
+#undef NOP
+#undef TYPES
+#undef STRUCT
+#undef STRING
+#undef PREFIX
+#undef DECLTYPE
+#undef _DECLTYPE
+#undef PTR_PREFIX
+
 #endif // PARSER_H
