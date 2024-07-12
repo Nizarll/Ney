@@ -1,4 +1,5 @@
 #include "../libs/lexer.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 /*  TODO: ADD ERROR SYSTEM */
@@ -64,7 +65,18 @@ Token lexer_next(Lexer *l) {
 
   if (l->cursor > l->content_len)
     return tok;
-
+  if (l->content[l->cursor] == '{') {
+    tok.type = TOKEN_CURLY_OPEN;
+    tok.value_len += 1;
+    l->cursor += 1;
+    return tok;
+  }
+  if (l->content[l->cursor] == '}') {
+    tok.type = TOKEN_CURLY_CLOSE;
+    tok.value_len += 1;
+    l->cursor += 1;
+    return tok;
+  }
   if (l->content[l->cursor] == '"') {
     tok.type = TOKEN_STRING;
     tok.value_len += 1;

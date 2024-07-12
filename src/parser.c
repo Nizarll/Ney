@@ -1,9 +1,16 @@
 #include "../libs/parser.h"
 #include <complex.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #define TYPES_LEN (sizeof(str_types) / sizeof(str_types[0]))
 #define TYPES_PAIR_LEN (sizeof(type_pairs) / sizeof(type_pairs[0]))
+
+bool is_word(char* src, char* lookup, size_t len) {
+  if (strncmp(src, lookup, len) == 0)
+    return true;
+  return false;
+}
 
 int get_type_from_str(char *content, size_t len) {
   for (size_t i = 0; i < TYPES_PAIR_LEN; i++) {
@@ -17,6 +24,7 @@ int get_type_from_str(char *content, size_t len) {
 bool var_declared(Ns *nsp, char *name, size_t len) {
   for (int i = 0; i < nsp->sym_occ; i++) {
     if (strncmp(name, nsp->symbols[i].val, len) == 0) {
+    printf("%s ,%s\n", name, nsp->symbols[i].val);
       return true;
     }
   }
@@ -30,11 +38,12 @@ void declare_var(Ns *nsp, size_t type, char *name, size_t len) {
       err(EXIT_FAILURE, "Heap overflow!");
   }
   nsp->symbols[nsp->sym_occ] = (Symbol){
-      .val = name,
+      .val = malloc(len),
       .type = (Type){.variant = type},
       .len = len,
   };
-  nsp->sym_occ += 1;
+  strncpy(nsp->symbols[nsp->sym_occ].val, name, len);
+  nsp->sym_occ++;
 }
 
 bool is_tok(Parser *p, TokenKind kind) {
@@ -70,7 +79,7 @@ void get_word_at(Parser *p, size_t i, char *buff, size_t len) {
   if (buff == null) {
     err(EXIT_FAILURE, "cannot put word onto a null buffer !");
   }
-  if (len < p->lexem->tokens[p->cursor - i].value_len) {
+  if (len < p->lexem->tokens[i].value_len) {
     err(EXIT_FAILURE,
         "buffer size cannot be smaller than the token word length!");
   }
@@ -119,10 +128,6 @@ Ast *ast_new(Ast a) {
   return ast;
 }
 
-void ns_register(Ns* nsp, Symbol* s) {
-
-}
-
 char *get_ast_node_name(Ast *node) {
   switch (node->variant) {
   case lit:
@@ -136,14 +141,41 @@ char *get_ast_node_name(Ast *node) {
 
 void parser_parse(Parser *p) {
   while(!is_tok_at(p, p->cursor, TOKEN_EOF)) {
+    char* curr = p->lexem->tokens[p->cursor].value;
+    size_t curr_len = p->lexem->tokens[p->cursor].value_len;
     if (is_tok_at(p, p->cursor, TOKEN_EQUAL)) {
+      parser_parse_assign_decl(p);
+      if (!is_tok_at(p, p->cursor, TOKEN_EOL))
+        err(EXIT_FAILURE, "statement needs to end with a semi-colon !");
+    }
+    if (p->cursor < p->lexem->len - 2 &&
+      p->cursor > 0 &&
+      is_tok(p, TOKEN_SYMBOL) &&
+      is_tok_at(p, p->cursor + 1, TOKEN_SYMBOL) &&
+      is_tok_at(p, p->cursor + 2, TOKEN_EOL))
+    {
+      printf("decl");
       parser_parse_decl(p);
+    }
+    if (is_tok(p, TOKEN_SYMBOL) && is_word(curr, "struct", curr_len)) {
+      parser_eat(p, TOKEN_SYMBOL);
+      if (!is_tok(p, TOKEN_SYMBOL))
+        err(EXIT_FAILURE, "syntax error struct requires a definition identifier");
+      parser_eat(p, TOKEN_SYMBOL);
+      if (!is_tok(p, TOKEN_CURLY_OPEN))
+        err(EXIT_FAILURE, "syntax error struct requires a block");
+      parser_eat(p, TOKEN_CURLY_OPEN);
+      printf("cursor: %d\n", p->cursor);
+      while (!is_tok(p, TOKEN_CURLY_CLOSE)) {
+        Ast* node = parser_parse_decl(p);
+      }
+      printf("end of struct ");
     }
     parser_eat(p, p->lexem->tokens[p->cursor].type);
   }
 }
 
-Ast *parser_parse_factor(Parser *p) {
+Ast* parser_parse_factor(Parser *p) {
   Ast *node = null;
   Token tok = p->lexem->tokens[p->cursor];
   parser_eat(p, p->lexem->tokens[p->cursor].type);
@@ -159,7 +191,7 @@ Ast *parser_parse_factor(Parser *p) {
   return node;
 }
 
-Ast *parser_parse_term(Parser *p) {
+Ast* parser_parse_term(Parser *p) {
   Ast *curr = parser_parse_factor(p);
   Token tok = p->lexem->tokens[p->cursor];
   parser_eat(p, p->lexem->tokens[p->cursor].type);
@@ -177,7 +209,7 @@ Ast *parser_parse_term(Parser *p) {
   return node;
 }
 
-Ast *parser_parse_expr(Parser *p) {
+Ast* parser_parse_expr(Parser *p) {
   Ast *node = parser_parse_factor(p);
   while (p->cursor < p->lexem->len && is_add_or_sub_tok(p)) {
     Token tok = p->lexem->tokens[p->cursor];
@@ -193,7 +225,7 @@ Ast *parser_parse_expr(Parser *p) {
   return node;
 }
 
-Ast* parse_assign_decl(Parser* p) {
+Ast* parser_parse_assign_decl(Parser* p) {
   Ast *node = null;
   if (p->cursor >= 2 && is_tok_at(p, p->cursor - 2, TOKEN_SYMBOL)) {
     size_t len = p->lexem->tokens[p->cursor - 2].value_len + 1; // >>> vartype varname = value
@@ -201,7 +233,7 @@ Ast* parse_assign_decl(Parser* p) {
     get_word_at(p, p->cursor - 2, type, len);
     if (!is_type(type, len))
       err(EXIT_FAILURE, "declaration needs to have a proper type ! ");
-    char var_len = p->lexem->tokens[p->cursor - 1].value_len + 1; // add 1 for null terminator
+    size_t var_len = p->lexem->tokens[p->cursor - 1].value_len + 1; // add 1 for null terminator
     char var_name[var_len];
     get_word_at(p, p->cursor - 1, var_name, var_len);
     if (var_declared(p->nsp, var_name,var_len))
@@ -214,10 +246,10 @@ Ast* parse_assign_decl(Parser* p) {
       parser_eat(p, p->lexem->tokens[p->cursor].type);
       Ast* node = ast_new((Ast){
         .variant = decl,
-        .value = ast_new((Ast){
-          .tok = lexem->tokens[p->cursor],
+        .val = ast_new((Ast){
+          .tok = p->lexem->tokens[p->cursor],
           .type = (Type) {.variant = type_variant},
-        }
+        })
       });
       parser_eat(p, p->lexem->tokens[p->cursor].type);
     }
@@ -225,17 +257,43 @@ Ast* parse_assign_decl(Parser* p) {
   return node;
 }
 
-Ast *parse_assign_decl(Parser* p) {
-
-}
-
-Ast *parser_parse_decl(Parser *p) {
-  if (is_tok(p, TOKEN_EQUAL)) {
-    return parse_assign_decl(p);
-  } else {
-    return parse_decl(p);
+Ast* parser_parse_decl(Parser *p) {
+  if (p->cursor < 0) return null;
+  if (p->cursor >= p->lexem->len) return null;
+  if (p->cursor > 0 && is_tok(p, TOKEN_SYMBOL) && is_tok_at(p, p->cursor + 1, TOKEN_SYMBOL)) {
+    if (p->cursor >= p->lexem->len - 2)
+      err(EXIT_FAILURE, "Syntax error !");
+    if (!is_tok_at(p, p->cursor + 2, TOKEN_EOL))
+      err(EXIT_FAILURE, "Syntax error !");
+    size_t len = p->lexem->tokens[p->cursor].value_len + 1; // vartype varname;
+    char type[len];
+    get_word_at(p, p->cursor, type, len);
+    if (!is_type(type, len))
+      err(EXIT_FAILURE, "Syntax error type is not a valid type !");
+    size_t var_len = p->lexem->tokens[p->cursor + 1].value_len + 1; // add 1 for null terminator
+    char var_name[var_len];
+    get_word_at(p, p->cursor + 1, var_name, var_len);
+    for (int i = 0; i < p->nsp->sym_occ; i++) {
+      printf("Symbol %s\n", p->nsp->symbols[i].val);
+    }
+    if (var_declared(p->nsp, var_name, var_len))
+      err(EXIT_FAILURE, "unimplemented variable redeclaration");
+    size_t t = get_type_from_str(type, len);
+    declare_var(p->nsp, t, var_name, var_len);
+    printf("var name: %s, var type: %s\n", var_name, type);
+    parser_eat(p, p->lexem->tokens[p->cursor].type);
+    parser_eat(p, p->lexem->tokens[p->cursor].type);
+    parser_eat(p, p->lexem->tokens[p->cursor].type);
   }
   return null;
+}
+
+Ast* parser_parse_struct(Parser *p) {
+  if (p->cursor <= 0) return null;
+  if (p->cursor >= p->lexem->len) return null;
+  if (p->cursor > 0 && is_tok(p, TOKEN_SYMBOL) && is_word(p->lexem->tokens[p->cursor].value,"struct", p->lexem->tokens[p->cursor].value_len)) {
+    parser_eat(p, TOKEN_SYMBOL);
+  }
 }
 
 #undef TYPES_LEN

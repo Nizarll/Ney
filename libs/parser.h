@@ -7,18 +7,26 @@
 #include <string.h>
 
 #define NEY_REALLOC_STEP 128
+#define LIFETIMES($) $(const), $(comptime), $(static)
 #define TYPES($) $(i8), $(i16), $(i32), $(i64), $(i128), \
                 $(u8), $(u16), $(u32), $(u128),           \
                 $(f16), $(f32), $(f64), $(f128),           \
                 $(str), $(char)
+#define EXPAND($) $
 #define NOP($) $
 #define PREFIX(B, A) B##A
-#define PTR_PREFIX(T) PREFIX(ptr_,T)
-#define DECLTYPE(x) _DECLTYPE(x)
-#define _DECLTYPE(x) T_PREFIX(x), PTR_PREFIX(x)
-#define T_PREFIX(T) PREFIX(t_,T)
-#define STRING(t) #t
+#define DECLTYPE($) _DECLTYPE($)
+#define _DECLTYPE($) T_PREFIX($), PTR_PREFIX($)
+#define T_PREFIX($) PREFIX(t_,$)
+#define PTR_PREFIX($) PREFIX(ptr_,$)
+#define PTR_STRING_HELPER($$, $) STRING($$ ## $)
+#define PTR_STRING($) PTR_STRING_HELPER(ptr_, $)
+#define STRING($) #$
 #define STRUCT($) (type_t) {STRING($), T_PREFIX($)}
+#define PTR_STRUCT($) (type_t) {PTR_STRING($), PTR_PREFIX($)}
+/*
+  TYPES(STRUCT)
+*/
 
 typedef struct {
   const char *str_val;
@@ -39,13 +47,6 @@ struct Type {
       size_t nArgs;
     } case_fn;
   };
-};
-
-static char *str_types[] = {
-  TYPES(STRING),
-};
-static type_t type_pairs[] = {
-  TYPES(STRUCT),
 };
 
 struct Ast {
@@ -70,11 +71,13 @@ struct Ast {
       struct Ast *lhs;
       struct Ast *rhs;
     };
-    int val;
   };
 };
 
 struct Symbol {
+  enum {
+    LIFETIMES(T_PREFIX),
+  } lft;
   Token tok;
   const char *val;
   struct Type type;
@@ -105,10 +108,22 @@ typedef struct Type Type;
 typedef struct Symbol Symbol;
 typedef struct Parser Parser;
 
+static char *str_types[] = {
+  TYPES(STRING),
+};
+static type_t type_pairs[] = {
+  TYPES(STRUCT),
+  TYPES(PTR_STRUCT),
+};
+static type_t lft_pairs[] = {
+  LIFETIMES(STRUCT),
+};
+
 Parser *parser_new(Parser p);
 Ns *ns_new(Ns nsp);
 char *get_ast_node_name(Ast *node);
 Ast *parser_parse_expr(Parser *p);
+Ast *parser_parse_assign_decl(Parser *p);
 Ast *parser_parse_decl(Parser *p);
 void parser_parse(Parser *p);
 void parser_dump_expr(Ast *node);
