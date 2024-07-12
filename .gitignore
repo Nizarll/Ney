@@ -3,4 +3,6 @@ neycomp
 a.out
 lexer.exe
 obj
+ney
+main.ney
 obj/*

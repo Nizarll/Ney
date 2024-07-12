@@ -66,6 +66,7 @@ struct Ast {
   struct Type type;
   union {
     struct {
+      struct Ast *val;
       struct Ast *lhs;
       struct Ast *rhs;
     };
@@ -78,7 +79,7 @@ struct Symbol {
   const char *val;
   struct Type type;
   size_t len;
-}; // variables declared
+};
 
 struct Ns {
   struct Symbol *symbols;

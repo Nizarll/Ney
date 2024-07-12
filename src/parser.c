@@ -16,8 +16,7 @@ int get_type_from_str(char *content, size_t len) {
 
 bool var_declared(Ns *nsp, char *name, size_t len) {
   for (int i = 0; i < nsp->sym_occ; i++) {
-    printf("hi\n");
-    if (memcmp(name, &nsp->symbols[i].val, len) == 0) {
+    if (strncmp(name, nsp->symbols[i].val, len) == 0) {
       return true;
     }
   }
@@ -25,7 +24,6 @@ bool var_declared(Ns *nsp, char *name, size_t len) {
 }
 
 void declare_var(Ns *nsp, size_t type, char *name, size_t len) {
-  printf("hi1\n");
   if (nsp->sym_occ >= nsp->sym_len) {
     if ((nsp->symbols =
              realloc(nsp->symbols, (nsp->sym_len += NEY_REALLOC_STEP))) == null)
@@ -136,7 +134,14 @@ char *get_ast_node_name(Ast *node) {
   }
 }
 
-void parser_parse(Parser *p) { parser_parse_decl(p); }
+void parser_parse(Parser *p) {
+  while(!is_tok_at(p, p->cursor, TOKEN_EOF)) {
+    if (is_tok_at(p, p->cursor, TOKEN_EQUAL)) {
+      parser_parse_decl(p);
+    }
+    parser_eat(p, p->lexem->tokens[p->cursor].type);
+  }
+}
 
 Ast *parser_parse_factor(Parser *p) {
   Ast *node = null;
@@ -188,33 +193,47 @@ Ast *parser_parse_expr(Parser *p) {
   return node;
 }
 
+Ast* parse_assign_decl(Parser* p) {
+  Ast *node = null;
+  if (p->cursor >= 2 && is_tok_at(p, p->cursor - 2, TOKEN_SYMBOL)) {
+    size_t len = p->lexem->tokens[p->cursor - 2].value_len + 1; // >>> vartype varname = value
+    char type[len];
+    get_word_at(p, p->cursor - 2, type, len);
+    if (!is_type(type, len))
+      err(EXIT_FAILURE, "declaration needs to have a proper type ! ");
+    char var_len = p->lexem->tokens[p->cursor - 1].value_len + 1; // add 1 for null terminator
+    char var_name[var_len];
+    get_word_at(p, p->cursor - 1, var_name, var_len);
+    if (var_declared(p->nsp, var_name,var_len))
+      err(EXIT_FAILURE, "unimplemented variable redeclaration!");
+    else {
+      size_t type_variant = get_type_from_str(type, len);
+      if (type < 0)
+        err(EXIT_FAILURE, "declaration needs to have a proper type ! ");
+      declare_var(p->nsp, type_variant, var_name, var_len);
+      parser_eat(p, p->lexem->tokens[p->cursor].type);
+      Ast* node = ast_new((Ast){
+        .variant = decl,
+        .value = ast_new((Ast){
+          .tok = lexem->tokens[p->cursor],
+          .type = (Type) {.variant = type_variant},
+        }
+      });
+      parser_eat(p, p->lexem->tokens[p->cursor].type);
+    }
+  }
+  return node;
+}
+
+Ast *parse_assign_decl(Parser* p) {
+
+}
+
 Ast *parser_parse_decl(Parser *p) {
   if (is_tok(p, TOKEN_EQUAL)) {
-    Ast *node = null;
-    if (p->cursor >= 2 && is_tok_at(p, p->cursor - 2, TOKEN_SYMBOL)) {
-      size_t len = p->lexem->tokens[p->cursor - 2].value_len + 1; // >>> vartype varname = value
-      char type[len];
-      get_word_at(p, p->cursor - 2, type, len);
-      if (!is_type(type, len))
-        err(EXIT_FAILURE, "declaration needs to have a proper type ! ");
-      char var_len = p->lexem->tokens[p->cursor - 1].value_len + 1; // add 1 for null terminator
-      char var_name[var_len];
-      get_word_at(p, p->cursor - 1, var_name, var_len);
-      if (var_declared(p->nsp, var_name,var_len))
-        err(EXIT_FAILURE, "unimplemented variable redeclaration!");
-      else {
-        size_t t = get_type_from_str(type, len);
-        if (type < 0)
-          err(EXIT_FAILURE, "declaration needs to have a proper type ! ");
-        declare_var(p->nsp, t, var_name, var_len);
-      }
-    }
-    return node;
+    return parse_assign_decl(p);
   } else {
-    if (p->cursor < p->lexem->len) {
-      parser_eat(p, p->lexem->tokens[p->cursor].type);
-      parser_parse_decl(p);
-    }
+    return parse_decl(p);
   }
   return null;
 }
