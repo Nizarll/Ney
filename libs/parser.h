@@ -42,6 +42,9 @@ struct Type {
       struct Type *elem;
     } case_arr;
     struct {
+      struct Type *args;
+    }case_struct;
+    struct {
       struct Type **args;
       struct Type *ret;
       size_t nArgs;
@@ -66,11 +69,12 @@ struct Ast {
   Token tok;
   struct Type type;
   union {
-    struct {
-      struct Ast *val;
-      struct Ast *lhs;
+    struct data{
       struct Ast *rhs;
-    };
+      struct Ast *lhs;
+    }data;
+    struct data;
+    struct Ast *val;
   };
 };
 
