@@ -1,8 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "./error.h"
-#include "./lexer.h"
+#include "alloc.h"
+#include "error.h"
+#include "lexer.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -42,7 +43,16 @@ struct Type {
       struct Type *elem;
     } case_arr;
     struct {
-      struct Type *args;
+      // struct linked_element:
+      // each member of a struct declaration is linked to the next one
+      // so it is easier to keep track of data in case we have a hybrid allocation
+      // see libs/alloc.h
+      // why hybrid allocation ? because starting off with contiguous memory is faster
+      // and less annoying to work with
+      struct l_mem {
+        struct Type type;
+        struct l_mem *next;
+      };
     }case_struct;
     struct {
       struct Type **args;
@@ -69,11 +79,10 @@ struct Ast {
   Token tok;
   struct Type type;
   union {
-    struct data{
+    struct {
       struct Ast *rhs;
       struct Ast *lhs;
-    }data;
-    struct data;
+    };
     struct Ast *val;
   };
 };

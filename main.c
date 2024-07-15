@@ -69,16 +69,12 @@ void handle_args(char **args, int len) {
   char *f_content = malloc(size + 1);
   fread(f_content, 1, size, file);
   Lexem lexem = generate_lexem(f_content);
-
-  Symbol *symbols = malloc((256 * sizeof(Symbol)));
+  Symbol symbols[256];
   Ns* nsp = ns_new((Ns){.symbols = symbols, .sym_len = 256});
   Parser *p = parser_new((Parser){.nsp = nsp,.lexem = &lexem});
   parser_parse(p);
   // parser_dump_expr(node);
   deconstruct_lexem(&lexem);
-  free(symbols);
-  free(nsp);
-  free(p);
 }
 
 int main(int argc, char **argv) {
@@ -86,5 +82,6 @@ int main(int argc, char **argv) {
     err(EXIT_FAILURE, "no file was passed !");
   } else
     handle_args(argv, argc);
+  destroy_heaps();
   return 0;
 }

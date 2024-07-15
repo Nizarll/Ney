@@ -96,36 +96,33 @@ void parser_eat_or_err(Parser *p, TokenKind kind) {
 }
 
 Ns *ns_new(Ns nsp) {
-  static struct {
-    uint16_t occ;
-    Ns at[UINT16_MAX];
-  } data = {0};
-  memcpy(&data.at[data.occ], &nsp, sizeof(Ns));
-  return &data.at[data.occ++];
+  static hybrd_b buf = (hybrd_b){
+    .elem_size = sizeof(Ast),
+  };
+  Ns *ns = hybrd_b_append(&buf, &nsp);
+  return ns;
 }
 
 Parser *parser_new(Parser p) {
-  static struct {
-    uint16_t occ;
-    Parser at[UINT16_MAX];
-  } data = {0};
-  memcpy(&data.at[data.occ], &p, sizeof(Parser));
-  data.at[data.occ].cursor = 0;
-  data.at[data.occ].node = 0;
-  data.at[data.occ].line = 0;
-  data.at[data.occ].bol = 0;
-  return &data.at[data.occ++];
+  static hybrd_b buf = (hybrd_b){
+    .elem_size = sizeof(Ast),
+  };
+  Parser *parser = hybrd_b_append(&buf, &p);
+  parser->cursor = 0;
+  parser->node = 0;
+  parser->line = 0;
+  parser->bol = 0;
+  return parser;
 }
 
 Ast *ast_new(Ast a) {
-  static struct {
-    uint16_t occ;
-    Ast at[UINT16_MAX];
-  } data = {0};
+  static hybrd_b buf = (hybrd_b){
+    .elem_size = sizeof(Ast),
+  };
   if (a.variant >= var_len)
     err(EXIT_FAILURE, "ast constructor error: unknown ast kind!\n");
-  memcpy(&data.at[data.occ], &a, sizeof(Ast));
-  return &data.at[data.occ++];
+  Ast* ast = hybrd_b_append(&buf, &a);
+  return ast;
 }
 
 char *get_ast_node_name(Ast *node) {
@@ -282,14 +279,17 @@ Ast* parser_parse_struct(Parser *p) {
       err(EXIT_FAILURE, "syntax error struct requires a block");
     parser_eat(p, TOKEN_CURLY_OPEN);
     size_t len = 256;
-    Type *args = new_typearr(len);
-    ast *node =  ast_new((Ast){
+    //Type *args = new_typearr(len);
+    hybrd_b buff = (hybrd_b) {
+      .elem_size = sizeof(Type)
+    };
+    Ast *node =  ast_new((Ast){
       .variant = decl,
-      .case_struct = {.args = args}
+      .type.case_struct = {},
     });
     while (!is_tok(p, TOKEN_CURLY_CLOSE)) {
       Ast* node = parser_parse_decl(p);
-      args[i] = (Type) {.variant = node->variant};
+      //args[i] = (Type) {.variant = node->variant};
       if (!node)
         err(EXIT_FAILURE, "struct member syntax error");
     }
