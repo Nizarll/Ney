@@ -281,7 +281,8 @@ Ast* parser_parse_struct(Parser *p) {
     if (!is_tok(p, TOKEN_CURLY_OPEN))
       err(EXIT_FAILURE, "syntax error struct requires a block");
     parser_eat(p, TOKEN_CURLY_OPEN);
-    Type args[256] = {};
+    size_t len = 256;
+    Type *args = new_typearr(len);
     ast *node =  ast_new((Ast){
       .variant = decl,
       .case_struct = {.args = args}
