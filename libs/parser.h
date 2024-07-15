@@ -50,7 +50,7 @@ struct Type {
       // why hybrid allocation ? because starting off with contiguous memory is faster
       // and less annoying to work with
       struct l_mem {
-        struct Type type;
+        struct Type *type;
         struct l_mem *next;
       };
     }case_struct;
@@ -68,6 +68,7 @@ struct Ast {
     binop,
     unop,
     expr,
+    assign,
     decl,
     ident,
     string,
@@ -118,6 +119,7 @@ struct Parser {
 typedef struct Ns Ns;
 typedef struct Ast Ast;
 typedef struct Type Type;
+typedef struct l_mem l_mem;
 typedef struct Symbol Symbol;
 typedef struct Parser Parser;
 
@@ -138,6 +140,7 @@ char *get_ast_node_name(Ast *node);
 Ast *parser_parse_expr(Parser *p);
 Ast *parser_parse_assign_decl(Parser *p);
 Ast *parser_parse_decl(Parser *p);
+Ast *parser_parse_struct(Parser *p);
 void parser_parse(Parser *p);
 void parser_dump_expr(Ast *node);
 

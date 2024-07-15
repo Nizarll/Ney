@@ -47,7 +47,7 @@ bool is_symbol(char x) { return isalnum(x) || x == '_'; }
 void lexer_trim_left(Lexer *l) {
   while (l->cursor < l->content_len && isspace(l->content[l->cursor])) {
     if (l->cursor > l->content_len)
-      NEY_ERR("ERROR DURING COMPILATION TIME");
+      err(EXIT_FAILURE, "failure during tokenization!");
     l->cursor++;
   }
 }
@@ -89,15 +89,31 @@ Token lexer_next(Lexer *l) {
     l->cursor += 1;
     return tok;
   }
-
   if (l->content[l->cursor] == ';') {
     tok.type = TOKEN_EOL;
     tok.value_len = 1;
     l->cursor += 1;
     return tok;
   }
-  if (l->content[l->cursor] == '+' || l->content[l->cursor] == '-' ||
-      l->content[l->cursor] == '*' || l->content[l->cursor] == '/') {
+  if (l->content[l->cursor] == '&' ||
+      l->content[l->cursor] == '|' ||
+      l->content[l->cursor] == '~' ||
+      l->content[l->cursor] == '!'
+  ) {
+    tok.type = TOKEN_OP;
+    tok.value_len += 1;
+    l->cursor += 1;
+    if (l->cursor < l->content_len &&
+      l->content[l->cursor] == l->content[l->cursor - 1]) {
+      tok.value_len += 1;
+      l->cursor += 1;
+    }
+    return tok;
+  }
+  if (l->content[l->cursor] == '+' ||
+      l->content[l->cursor] == '-' ||
+      l->content[l->cursor] == '*' ||
+      l->content[l->cursor] == '/') {
     tok.type = TOKEN_OP;
     tok.value_len = 1;
     l->cursor += 1;

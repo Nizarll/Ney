@@ -1,4 +1,6 @@
 #include "../libs/parser.h"
+#include <complex.h>
+#include <cstdlib>
 
 #define TYPES_LEN (sizeof(str_types) / sizeof(str_types[0]))
 #define TYPES_PAIR_LEN (sizeof(type_pairs) / sizeof(type_pairs[0]))
@@ -95,9 +97,17 @@ void parser_eat_or_err(Parser *p, TokenKind kind) {
     err(EXIT_FAILURE, "error in parser\n"); // TODO: add proper errors
 }
 
+Type *type_new(Type t) {
+  static hybrd_b buf = (hybrd_b){
+    .elem_size = sizeof(Type),
+  };
+  Type *type = hybrd_b_append(&buf, &t);
+  return type;
+}
+
 Ns *ns_new(Ns nsp) {
   static hybrd_b buf = (hybrd_b){
-    .elem_size = sizeof(Ast),
+    .elem_size = sizeof(Ns),
   };
   Ns *ns = hybrd_b_append(&buf, &nsp);
   return ns;
@@ -105,7 +115,7 @@ Ns *ns_new(Ns nsp) {
 
 Parser *parser_new(Parser p) {
   static hybrd_b buf = (hybrd_b){
-    .elem_size = sizeof(Ast),
+    .elem_size = sizeof(Parser),
   };
   Parser *parser = hybrd_b_append(&buf, &p);
   parser->cursor = 0;
@@ -137,10 +147,13 @@ char *get_ast_node_name(Ast *node) {
 }
 
 void parser_parse(Parser *p) {
+  int i = 0;
   while(!is_tok_at(p, p->cursor, TOKEN_EOF)) {
+    i+=1;
     char* curr = p->lexem->tokens[p->cursor].value;
     size_t curr_len = p->lexem->tokens[p->cursor].value_len;
     if (is_tok_at(p, p->cursor, TOKEN_EQUAL)) {
+      printf("assign\n\n");
       parser_parse_assign_decl(p);
       if (!is_tok_at(p, p->cursor, TOKEN_EOL))
         err(EXIT_FAILURE, "statement needs to end with a semi-colon !");
@@ -151,10 +164,11 @@ void parser_parse(Parser *p) {
       is_tok_at(p, p->cursor + 1, TOKEN_SYMBOL) &&
       is_tok_at(p, p->cursor + 2, TOKEN_EOL))
     {
-      printf("decl");
+      printf("decl\n\n");
       parser_parse_decl(p);
     }
     if (is_tok(p, TOKEN_SYMBOL) && is_word(curr, "struct", curr_len)) {
+      parser_parse_struct(p);
     }
     parser_eat(p, p->lexem->tokens[p->cursor].type);
   }
@@ -260,17 +274,43 @@ Ast* parser_parse_decl(Parser *p) {
     get_word_at(p, p->cursor + 1, var_name, var_len);
     if (var_declared(p->nsp, var_name, var_len))
       err(EXIT_FAILURE, "unimplemented variable redeclaration");
-    size_t t = get_type_from_str(type, len);
-    declare_var(p->nsp, t, var_name, var_len);
-    for (int i = 0; i < 2; i++) parser_eat(p, p->lexem->tokens[p->cursor].type);
+    size_t type_variant = get_type_from_str(type, len);
+    declare_var(p->nsp, type_variant, var_name, var_len);
+    Ast* node = ast_new((Ast){
+      .variant = decl,
+      .val = ast_new((Ast){
+        .tok = p->lexem->tokens[p->cursor],
+        .type = (Type) {.variant = type_variant},
+      })
+    });
+    for (int i = 0; i < 3; i++) parser_eat(p, p->lexem->tokens[p->cursor].type);
+    return node;
   }
   return null;
 }
 
-Ast* parser_parse_struct(Parser *p) {
-  if (p->cursor <= 0) return null;
+Ast * parser_parse_assign(Parser *p) {
+  if (p->cursor < 0) return null;
   if (p->cursor >= p->lexem->len) return null;
-  if (p->cursor > 0 && is_tok(p, TOKEN_SYMBOL) && is_word(p->lexem->tokens[p->cursor].value, "struct", p->lexem->tokens[p->cursor].value_len)) {
+  if (p->cursor >= 0 && is_tok(p->cursor - 1, TOKEN_SYMBOL)) {
+    size_t var_len = p->lexem->tokens[p->cursor + 1].value_len + 1;
+    char var_name[var_len];
+    get_word_at(p->cursor - 1, var_len, var_name);
+    if (!var_declared(p->nsp, var_name, var_len))
+      err(EXIT_FAILURE, "assignment to non declared variable");
+    node = ast_new((Ast){
+      .variant = assign,
+      .val = 
+    });
+  }
+  return null;
+}
+
+
+Ast* parser_parse_struct(Parser *p) {
+  if (p->cursor < 0) return null;
+  if (p->cursor >= p->lexem->len) return null;
+  if (p->cursor >= 0 && is_tok(p, TOKEN_SYMBOL) && is_word(p->lexem->tokens[p->cursor].value, "struct", p->lexem->tokens[p->cursor].value_len)) {
     parser_eat(p, TOKEN_SYMBOL);
     if (!is_tok(p, TOKEN_SYMBOL))
       err(EXIT_FAILURE, "syntax error struct requires a definition identifier");
@@ -279,17 +319,30 @@ Ast* parser_parse_struct(Parser *p) {
       err(EXIT_FAILURE, "syntax error struct requires a block");
     parser_eat(p, TOKEN_CURLY_OPEN);
     size_t len = 256;
-    //Type *args = new_typearr(len);
-    hybrd_b buff = (hybrd_b) {
+    hybrd_b b = (hybrd_b) {
       .elem_size = sizeof(Type)
     };
     Ast *node =  ast_new((Ast){
       .variant = decl,
-      .type.case_struct = {},
     });
     while (!is_tok(p, TOKEN_CURLY_CLOSE)) {
-      Ast* node = parser_parse_decl(p);
-      //args[i] = (Type) {.variant = node->variant};
+      Ast* curr_d = parser_parse_decl(p);
+      if (curr_d == null) 
+        err(EXIT_FAILURE, "struct syntax error!");
+      l_mem* member = hybrd_b_append(&b, &(l_mem){
+        .type = type_new((Type){
+          .variant = curr_d->type.variant,
+        })
+      });
+      l_mem* prev;
+      if (b.curr < U16_MAX) {
+        prev = (l_mem*)(&b.s_buff[(b.curr - 1) * b.elem_size]);
+      } else if (b.curr >= U16_MAX && b.hp->curr == 0) {
+        prev = (l_mem*)(&b.s_buff[b.curr * b.elem_size]);
+      } else {
+        prev = (l_mem*)(&b.hp->buff[(b.hp->curr - 1) * b.elem_size]);
+      }
+      prev->next = member;
       if (!node)
         err(EXIT_FAILURE, "struct member syntax error");
     }

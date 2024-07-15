@@ -1,23 +1,13 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "ansi.h"
+#include "error.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define NEY_OKAY(msg, ...)                                                     \
-  printf(ANSI_COLOR_GREEN "[✓] | " msg ANSI_COLOR_RESET "\n", ##__VA_ARGS__)
-#define NEY_ERR(msg, ...)                                                      \
-  do {                                                                         \
-    printf(ANSI_COLOR_RED "[✘] | " msg ANSI_COLOR_RESET "\n", ##__VA_ARGS__);  \
-    exit(1);                                                                   \
-  } while (0)
-#define NEY_WARN(msg, ...)                                                     \
-  printf(ANSI_COLOR_YELLOW "[!] | " msg ANSI_COLOR_RESET "\n", ##__VA_ARGS__)
 
 typedef enum TOKEN_TYPE {
   TOKEN_EOF = 0, // done
