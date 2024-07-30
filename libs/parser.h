@@ -1,156 +1,128 @@
-#ifndef PARSER_H
-#define PARSER_H
+#pragma once
 
-#include "alloc.h"
-#include "error.h"
-#include "lexer.h"
-#include <stdbool.h>
-#include <string.h>
+#include <print>
+#include <cctype>
+#include <cassert>
+#include <concepts>
+#include <string_view>
+#include <span>
+#include <string>
+#include <cstdlib>
+#include <cstdint>
+#include <utility>
+#include <type_traits>
+#include <vector>
+#include <expected>
+#include <unordered_map>
 
-#define NEY_REALLOC_STEP 128
-#define LIFETIMES($) $(const), $(comptime), $(static)
-#define TYPES($) $(i8), $(i16), $(i32), $(i64), $(i128), \
-                $(u8), $(u16), $(u32), $(u128),           \
-                $(f16), $(f32), $(f64), $(f128),           \
-                $(str), $(char)
-#define EXPAND($) $
-#define NOP($) $
-#define PREFIX(B, A) B##A
-#define DECLTYPE($) _DECLTYPE($)
-#define _DECLTYPE($) T_PREFIX($), PTR_PREFIX($)
-#define T_PREFIX($) PREFIX(t_,$)
-#define PTR_PREFIX($) PREFIX(ptr_,$)
-#define PTR_STRING_HELPER($$, $) STRING($$ ## $)
-#define PTR_STRING($) PTR_STRING_HELPER(ptr_, $)
+using i8  = int8_t;
+using i16 = int16_t;
+using i32 = int32_t;
+using i64 = int64_t;
+
+using u8  = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+
 #define STRING($) #$
-#define STRUCT($) (type_t) {STRING($), T_PREFIX($)}
-#define PTR_STRUCT($) (type_t) {PTR_STRING($), PTR_PREFIX($)}
-/*
-  TYPES(STRUCT)
-*/
+#define NOP($) $
 
-typedef struct {
-  const char *str_val;
-  size_t val;
-} type_t;
+#define TYPES($) $(i8), $(i16), $(i32), $(i64), $(i128), \
+                 $(u8), $(u16), $(u32), $(u64), $(u128),  \
+                 $(f32), $(f64), $(f128), $(string),       \
+                 $(chr)
 
-struct Type {
-  enum {
-    TYPES(DECLTYPE),
-  } variant;
-  union {
-    struct {
-      struct Type *elem;
-    } case_arr;
-    struct {
-      // struct linked_element:
-      // each member of a struct declaration is linked to the next one
-      // so it is easier to keep track of data in case we have a hybrid allocation
-      // see libs/alloc.h
-      // why hybrid allocation ? because starting off with contiguous memory is faster
-      // and less annoying to work with
-      struct l_mem {
-        struct Type *type;
-        struct l_mem *next;
-      };
-    }case_struct;
-    struct {
-      struct Type **args;
-      struct Type *ret;
-      size_t nArgs;
-    } case_fn;
+#define TOKENS($) $(END_OF_FILE), $(RPAREN), $(LPAREN), $(RBRACK), \
+                $(LRBACK), $(RCURLY), $(LCURLY), $(IDENT), $(CHAR), \
+                $(STR), $(SYMBOL), $(EOL), $(UNDEFINED)
+
+enum class PrimaryType : u8 {
+  TYPES(NOP),
+  LEN
+};
+
+enum class TokenKind : u8 {
+  TOKENS(NOP),
+  LEN
+};
+
+enum class ErrorKind : u8 {
+  WARNING,
+  ERROR,
+  NOTE,
+};
+
+struct err {
+  u16 kind;
+  std::span<char> loc;
+  std::string_view msg;
+  template <typename T> requires std::same_as<std::remove_cvref_t<T>, std::span<char>>
+  err(ErrorKind m_kind, T&& m_loc,const char* m_msg) : kind{std::to_underlying(m_kind)}, loc(std::forward<T>(m_loc)), msg(m_msg)
+  {}
+  auto to_str() const;
+};
+
+struct token {
+  u16 kind;
+  std::span<char> loc;
+  template <typename T> requires std::same_as<std::remove_cvref_t<T>, std::span<char>>
+  token(TokenKind m_kind, T&& m_loc) : kind{std::to_underlying(m_kind)},loc(std::forward<T>(m_loc)) {}
+  auto to_str() const;
+  void set_kind(TokenKind m_kind) {
+    kind = std::to_underlying(m_kind);
   };
 };
 
-struct Ast {
-  enum {
-    lit,
-    binop,
-    unop,
-    expr,
-    assign,
-    decl,
-    ident,
-    string,
-    number,
-    if_st,
-    loop,
-    var_len
-  } variant;
-  Token tok;
-  struct Type type;
-  union {
-    struct {
-      struct Ast *rhs;
-      struct Ast *lhs;
-    };
-    struct Ast *val;
-  };
+using lexem = std::vector<token>;
+
+struct lexer {
+  char* content;
+  u32 cursor;
+  u32 line;
+  u32 row;
+  u32 len;
+  std::expected<void, err> consume_if(u16 type);
+  std::expected<void, err> consume(u16 amnt);
+  std::expected<void, err> consume_spaces();
+  lexem lex();
+  token next();
 };
 
-struct Symbol {
-  enum {
-    LIFETIMES(T_PREFIX),
-  } lft;
-  Token tok;
-  const char *val;
-  struct Type type;
-  size_t len;
+struct scope {
+  scope *prev;
 };
 
-struct Ns {
-  struct Symbol *symbols;
-  size_t sym_len;
-  size_t sym_occ;
+struct type {
+  PrimaryType kind;
+  struct case_struct { type* curr; type* next; };
+  struct case_arr { type* elems; };
+  std::variant<case_struct, case_arr> var;
 };
 
-struct Parser {
-  struct Ns *nsp;
-  struct Ast *nodes;
-  struct Lexem *lexem;
-  uint32_t len;
-  uint32_t node;
-  uint32_t cursor; // NOTE: current token
-  uint32_t line;
-  uint32_t bol;
-  // TODO: ADD ERRORS
+struct ast {
+  type tp;
+  struct bi_node{ ast* left; ast* right; };
+  struct mono_node{ ast* value; };
+  std::variant<bi_node, mono_node> node;
 };
 
-typedef struct Ns Ns;
-typedef struct Ast Ast;
-typedef struct Type Type;
-typedef struct l_mem l_mem;
-typedef struct Symbol Symbol;
-typedef struct Parser Parser;
-
-static char *str_types[] = {
-  TYPES(STRING),
-};
-static type_t type_pairs[] = {
-  TYPES(STRUCT),
-  TYPES(PTR_STRUCT),
-};
-static type_t lft_pairs[] = {
-  LIFETIMES(STRUCT),
+struct ast_list {
+  std::vector<ast*> nodes;
+  void destroy() {
+    for (auto& node : nodes)
+      delete node;
+  }
 };
 
-Parser *parser_new(Parser p);
-Ns *ns_new(Ns nsp);
-char *get_ast_node_name(Ast *node);
-Ast *parser_parse_expr(Parser *p);
-Ast *parser_parse_assign_decl(Parser *p);
-Ast *parser_parse_decl(Parser *p);
-Ast *parser_parse_struct(Parser *p);
-void parser_parse(Parser *p);
-void parser_dump_expr(Ast *node);
+struct parser {
+  lexem lex;
+  u32 curr;
+  ast* parse_struct();
+  ast_list parse_lexem(lexem& l);
+  void consume(u16 amnt);
+};
 
-#undef NOP
-#undef TYPES
-#undef STRUCT
-#undef STRING
-#undef PREFIX
-#undef DECLTYPE
-#undef _DECLTYPE
-#undef PTR_PREFIX
-
-#endif // PARSER_H
+bool is_symbol(char c);
+void throw_err(err&& error);
+void throw_err(const err& error);

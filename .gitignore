@@ -6,3 +6,6 @@ obj
 ney
 main.ney
 obj/*
+compile_commands.json
+build/
+build/**

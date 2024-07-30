@@ -1,0 +1,3 @@
+/home/nizar/Ney/build/CMakeFiles/app.dir
+/home/nizar/Ney/build/CMakeFiles/edit_cache.dir
+/home/nizar/Ney/build/CMakeFiles/rebuild_cache.dir
