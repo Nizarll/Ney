@@ -1,44 +1,21 @@
-#pragma once
-
-#include <algorithm>
-#include <cstring>
-#include <print>
-#include <cctype>
-#include <cassert>
-#include <concepts>
-#include <string_view>
-#include <span>
-#include <string>
-#include <cstdlib>
-#include <cstdint>
-#include <utility>
-#include <type_traits>
-#include <vector>
-#include <expected>
-#include <unordered_map>
-
-using i8  = int8_t;
+# 1 "libs/parser.h"
+# 1 "<built-in>" 1
+# 1 "<built-in>" 3
+# 390 "<built-in>" 3
+# 1 "<command line>" 1
+# 1 "<built-in>" 2
+# 1 "libs/parser.h" 2
+# 20 "libs/parser.h"
+using i8 = int8_t;
 using i16 = int16_t;
 using i32 = int32_t;
 using i64 = int64_t;
 
-using u8  = uint8_t;
+using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 using u64 = uint64_t;
-
-#define STRING($) #$
-#define NOP($) $
-
-#define TYPES($) $(i8), $(i16), $(i32), $(i64), $(i128), \
-                 $(u8), $(u16), $(u32), $(u64), $(u128),  \
-                 $(f32), $(f64), $(f128), $(string),       \
-                 $(chr)
-
-#define TOKENS($) $(END_OF_FILE), $(RPAREN), $(LPAREN), $(RBRACK), \
-                $(LRBACK), $(RCURLY), $(LCURLY), $(IDENT), $(CHAR), \
-                $(STR), $(SYMBOL), $(EOL), $(SEMICOL), $(COL), $(UNDEFINED)
-
+# 42 "libs/parser.h"
 enum class AstVariant : u8 {
   LIT,
   EXPR,
@@ -51,12 +28,12 @@ enum class AstVariant : u8 {
 };
 
 enum class PrimaryType : u8 {
-  TYPES(NOP),
+  i8, i16, i32, i64, i128, u8, u16, u32, u64, u128, f32, f64, f128, string, chr,
   LEN
 };
 
 enum class TokenKind : u8 {
-  TOKENS(NOP),
+  END_OF_FILE, RPAREN, LPAREN, RBRACK, LRBACK, RCURLY, LCURLY, IDENT, CHAR, STR, SYMBOL, EOL, SEMICOL, COL, UNDEFINED,
   LEN
 };
 
@@ -146,5 +123,3 @@ struct parser {
 };
 
 bool is_symbol(char c);
-//void throw_err(err&& error);
-//void throw_err(const err& error);

@@ -1,21 +1,22 @@
 #include "../libs/parser.h"
 #include <cstring>
-#include <print>
 #include <string>
+#include <print>
 
 int main() {
-  char* content = "a() b() c() hello world";
-  auto len = sizeof(content);
+  char content[] = "u8 int";
+  auto len = strlen(content);
   lexer l {
     content,
     0,
     0,
     0,
-    strlen(content),
+     len,
   };
   lexem lxm = l.lex();
   parser p{};
-  p.parse_lexem(lxm);
+  ast_list list = p.parse_lexem(lxm);
+  list.destroy();
   return 0;
 }
 

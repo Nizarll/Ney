@@ -1,1 +1,1 @@
-g++ -g3 -Wall -Wpedantic CMakeFiles/app.dir/src/main.cpp.o CMakeFiles/app.dir/src/parser.cpp.o -o app
+g++ -g3  -Wall -Wpedantic CMakeFiles/app.dir/src/main.cpp.o CMakeFiles/app.dir/src/parser.cpp.o -o app
