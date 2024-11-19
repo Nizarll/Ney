@@ -5,37 +5,46 @@ import types;
 
 // c-imports
 
-extern fn bool is_digit(char c) @extern("isdigit");
-extern fn bool is_alpha(char c) @extern("isalpha");
+def Location = usz[<2>];
 
 enum TKind : uint {
-  EQ,
-  EOF,
-  DOT,
-  PIPE,
-  ISEQ,
-  LESS,
-  COLON,
-  ARROW,
-  LESSEQ,
-  SYMBOL,
-  SEMICOL,
-  GREATER,
-  GREATEREQ,
-  OPENPAREN,
-  CLOSEPAREN,
-  CLOSEBRACK,
-  OPENBRACK,
+  PIPE, ISEQ, EQ, EOF,
+  DOT, ARROW, LESSEQ,
+  SYMBOL, NUMLIT, SEMICOL,
+  GREATER, GREATEREQ,
+  OPENPAREN, CLOSEPAREN,
+  CLOSEBRACK, OPENBRACK,
+  COLON, LESS, CHAR, STR,
 }
 
 struct Token {
-  Slice(<char>) view;
   TKind kind;
+  Location loc;
+  Slice(<char>) view;
 }
+
+struct Lexer {
+  usz i;
+  Location loc;
+  Slice(<char>) view;
+  List(<Token>) tokens;
+}
+
+extern fn bool is_digit(char c) @extern("isdigit");
+extern fn bool is_alpha(char c) @extern("isalpha");
+
 
 fn void Token.print(&self) {
   String s;
   switch (self.kind) {
+    case STR:
+      s = "STR";
+    case CHAR:
+      s = "CHAR";
+    case NUMLIT:
+      s = "NUMLIT";
+    case SYMBOL:
+      s = "SYMBOL";
     case EOF:
       s = "EOF";
     case DOT:
@@ -72,14 +81,6 @@ fn void Token.print(&self) {
   io::print(s);
 }
 
-struct Lexer {
-  usz i;
-  usz row;
-  usz col;
-  Slice(<char>) view;
-  List(<Token>) tokens;
-}
-
 fn bool ZString.match(&self, String s) {
   return (bool) (libc::strncmp(*self, s, s.len) == 0);
 }
@@ -90,14 +91,47 @@ fn Lexer init(Slice(<char>) view) {
   return l;
 }
 
+fn void Lexer.parse_char(&self) {
+  self.push_type(TKind.CHAR);
+}
+
+fn void Lexer.parse_str(&self) {
+
+  char delim = self.curr();
+  self.inc();
+  usz start = self.i;
+
+  while(self.i < self.view.len && self.curr() != delim) {
+    if (self.curr() == '\\') self.inc(); // skip escape sequences;
+    self.inc();
+  }
+
+//TODO: add error system here
+  if (self.i >= self.view.len) {
+    io::print("string needs to be closed\n");
+    return;
+  }
+
+  usz end = self.i;
+  self.push_type(TKind.STR, end - start);
+}
+
+fn void Lexer.parse_num(&self) {
+
+}
+
+fn void Lexer.parse_sym(&self) {
+
+}
+
 fn void Lexer.inc(&self) {
   char curr = self.curr();
   switch (self.curr()) {
     case '\n':
-      self.col = 1;
-      self.row += 1;
+    self.loc.x = 1;
+    self.loc.y += 1;
     default:
-      self.col += 1;
+    self.loc.x += 1;
   }
   self.i += 1;
 }
@@ -123,7 +157,7 @@ fn char Lexer.curr(&self) {
 
 fn void Lexer.push_type(&self, TKind kind, usz len = 1) {
   Slice(<char>) view = {self.at(self.i), len};
-  self.tokens.push(Token{view, kind});
+  self.tokens.push(Token{kind, self.loc, view});
   for (int i = 0; i < len; i++) self.inc();
 }
 
@@ -134,7 +168,7 @@ fn List(<Token>) Lexer.lex(&self) {
       case '\t': case '\v':
       case '\r': case '\n':
       case ' ':
-        self.inc();
+      self.inc();
       case ',': self.push_type(TKind.COLON);
       case ';': self.push_type(TKind.SEMICOL);
       case '(': self.push_type(TKind.OPENPAREN);
@@ -156,10 +190,13 @@ fn List(<Token>) Lexer.lex(&self) {
         case '=': self.push_type(TKind.GREATEREQ, 2);
         default: self.push_type(TKind.GREATER);
       }
-      case '\'': self.parse_char();
       case  '"': self.parse_str();
-      case is_digit(curr): self.parse_num();
-      case is_alpha(curr): self.parse_sym();
+      case '\'': self.parse_char();
+      default:
+        switch {
+          case is_digit(curr): self.parse_num();
+          case is_alpha(curr): self.parse_sym();
+        }
     }
   }
   return self.tokens;

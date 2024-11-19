@@ -11,7 +11,7 @@ import std::collections;
 fn int main(String[] args)
 {
 
-  String test_string = ">= <= =>";
+  String test_string = ">= <= => \"hello\"";
   Lexer lexer = lexer::init(
         Slice(<char>) {
           test_string, test_string.len
