@@ -2,7 +2,7 @@ module ney;
 
 //
 import libc;
-import types;
+import utils;
 import lexer;
 import std::io;
 import std::collections;

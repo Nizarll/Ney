@@ -1,23 +1,33 @@
-module types::slice(<Type>);
-import libc;
+module types;
+import utils;
 
-struct Slice {
-  Type* view;
-  usz len;
+enum DefaultType {
+  CHAR, BOOL, FUNC, STR,
+  NUMBER, LAMBDA, STRUCT,
+  ARRAY, ERROR
 }
 
-fn Type Slice.get(Slice* self, usz id = 0) @operator([]) {
-  return (Type)(*(self.view + id));
+struct Struct {
+  Slice(<Type>) members;
 }
 
-fn Type* Slice.get_ref(Slice* self, usz id = 0) @operator(&[]) {
-  return (Type*)(self.view + id);
+struct Func {
+  Type* rtype;
+  Slice(<Type>) params;
 }
 
-fn usz Slice.len(Slice* self) @operator(len) {
-  return self.len;
+struct TypeUnion {
+  Struct struc;
+  Func func;
 }
 
-fn bool Slice.equals(Slice* self, Type* other, usz size) {
-  return (bool) (libc::memcmp(self.view + self.len, other, size) == 0);
+struct Type {
+  String name;
+  DefaultType default_type;
+  TypeUnion type_union;
+}
+
+fn String Type.to_str() {
+  //TODO:
+  return "UNIMPLEMENTED TYPE.TO_STR()";
 }

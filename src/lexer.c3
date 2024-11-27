@@ -1,11 +1,9 @@
 import std::io;
 import std::collections;
 import libc;
-import types;
+import utils;
 
 // c-imports
-
-def Location = usz[<2>];
 
 enum TKind : uint {
   PIPE, ISEQ, EQ, EOF,
