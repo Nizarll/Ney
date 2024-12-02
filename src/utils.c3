@@ -25,9 +25,9 @@ fn bool Slice.equals(Slice* self, Type* other, usz size) {
   return (bool) (libc::memcmp(self.view + self.len, other, size) == 0);
 }
 
-import types;
 module utils::ast;
 import utils::slice;
+import types;
 
 enum AstType {
   UNOP, BINOP, TYPEOF, BLOCK, IFSTM,
@@ -58,6 +58,6 @@ union AstUnion {
 struct Ast {
   AstType type;
   AstUnion node;
+  Location loc;
   Slice(<char>) slice;
-  Location slice;
 }

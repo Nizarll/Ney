@@ -27,7 +27,7 @@ struct Type {
   TypeUnion type_union;
 }
 
-fn String Type.to_str() {
+fn String Type.to_str(&self) {
   //TODO:
   return "UNIMPLEMENTED TYPE.TO_STR()";
 }
