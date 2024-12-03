@@ -1,7 +1,7 @@
 import std::io;
-import std::collections;
 import libc;
 import utils;
+import std::collections;
 
 // c-imports
 
@@ -225,10 +225,10 @@ fn void Lexer.lex(&self) {
 }
 
 fn void Lexer.destroy(&self) {
-  self.unimplemented();
+ lx_unimplemented();
 }
 
-fn void Lexer.unimplemented(&self) {
-  io::print("error: [lexer] unimplemented");
+macro void lx_unimplemented() {
+  libc::printf("[Lexer]: Unimplemented At: %s Line %d\n", $$FUNC, $$LINE);
   libc::exit(1);
 }
