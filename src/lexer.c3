@@ -33,6 +33,10 @@ extern fn CInt is_alpha(char c) @extern("isalpha");
 extern fn CInt is_space(char c) @extern("isspace");
 extern fn CInt is_alnum(char c) @extern("isalnum");
 
+fn bool Token.is(&self, TKind kind) {
+  return self.kind == kind;
+}
+
 fn void Token.print(&self) {
   String s;
   switch (self.kind) {

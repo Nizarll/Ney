@@ -1,5 +1,6 @@
 module ast;
 import utils;
+import lexer;
 import types;
 
 enum AstKind {
@@ -23,7 +24,19 @@ struct VarDecl {
   Slice(<char>) name;
 }
 
+struct Expression {
+  //TODO:
+  void* todo;
+}
+
+struct Literal {
+  //TODO:
+  Token token;
+}
+
 union AstUnion {
+  Expression expr;
+  Literal literal;
   VarDecl var_decl;
   TypeDecl type_decl;
 }
