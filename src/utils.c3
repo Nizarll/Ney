@@ -1,5 +1,10 @@
 def Location = usz[<2>];
 
+import utils::slice;
+fn Slice(<char>) string_to_slice(String s) {
+  return Slice(<char>){s, s.len};
+}
+
 module utils::slice(<Type>);
 import libc;
 

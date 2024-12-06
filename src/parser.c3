@@ -65,17 +65,17 @@ fn void Parser.inc(&self) @inline {
 }
 
 fn bool Parser.match(&self, String s) @inline {
-  if (self.is_token(TKind.EOF)) return false;
-  if (self.peek().view.len != s.len - 1) return false;
-  return (bool) libc::memcmp(self.peek().view.ptr, (char*) s, s.len);
+  Slice(<char>) view = self.token().view;
+  if (view.len == s.len) {
+    return libc::memcmp(self.token().view.ptr, (char*) s, s.len) == 0;
+  }
+  return false;
 }
 
 fn void Parser.parse(&self) {
   bool printed = false;
-  while (!self.is_eof()) {
-    self.peek().print();
-    io::print("\n");
-    self.inc();
+  foreach(&token : self.tokens) {
+    token.print();
   }
   self.i = 0;
   while (!self.is_eof()) {
@@ -84,10 +84,7 @@ fn void Parser.parse(&self) {
 }
 
 fn bool Parser.is_stmt(&self) {
-  if (self.get_trivial_type()) {
-    io::print("is trivial type");
-    return true;
-  }
+  if (self.is_token(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) return true;
   if (self.is_ns_type()) return true;
   if (self.is_assign()) return true;
   if (self.is_call()) return true;
@@ -96,7 +93,6 @@ fn bool Parser.is_stmt(&self) {
 
 fn String* Parser.get_trivial_type(&self) {
   foreach(&type : types) {
-    io::print(*type);
     if (self.match(*type)) return type;
   }
   return null;
@@ -110,10 +106,13 @@ fn bool Parser.is_ns_type(&self) {
 
 fn bool Parser.is_assign(&self) {
   TKind[*] kinds = {TKind.SYMBOL, TKind.EQ};
-  foreach (kind : kinds) { //TODO: refactor this bullshit im lazy af
-  if (!self.is_token(kind)) return false;
-}
-return true;
+  //TODO: refactor this bullshit im lazy af
+  foreach (kind : kinds) {
+    if (!self.is_token(kind)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 fn bool Parser.is_call(&self) {
@@ -126,10 +125,10 @@ fn bool Parser.is_call(&self) {
 }
 
 fn void Parser.parse_stmt(&self) {
-  if (self.get_trivial_type()) self.parse_decl();
-  if (self.is_ns_type());
-  if (self.is_assign());
-  if (self.is_call());
+  if (self.is_token(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) self.parse_decl();
+  //if (self.is_ns_type());
+  //if (self.is_assign());
+  //if (self.is_call());
 }
 
 fn void Parser.parse_ifstmt(&self) {
@@ -149,41 +148,40 @@ fn void Parser.parse_decl(&self) {
     ast.unyon.var_decl.type.name = *trivial_type;
     ast.unyon.var_decl.has_value = true;
   } else {
-    _unimplemented();
+    _unimplemented("HANDLE USER DEFINED TYPES");
     //TODO: handle declaration of variable using user defined type!
   }
 
+  self.inc();
+
   Token name_tok = self.token();
+
+  name_tok.print();
+
   if (!name_tok.is(TKind.SYMBOL)) {
     //TODO: add error system : expected variable name after variable type in declaration !
     _unimplemented();
   }
 
-  self.token().print();
-  self.inc();
   ast.unyon.var_decl.name = name_tok.view;
 
-  if (self.is_token(TKind.EQ)) {
+  if (self.peek().is(TKind.EQ)) {
     //TODO: handle parsing of expression
-    if (self.peek().is(TKind.STR)     ||
-        self.peek().is(TKind.CHAR)    ||
-        self.peek().is(TKind.CHAR)    ||
-        self.peek().is(TKind.NUMLIT))
+    if (self.peek(2).is(TKind.STR) ||
+    self.peek(2).is(TKind.CHAR)    ||
+    self.peek(2).is(TKind.CHAR)    ||
+    self.peek(2).is(TKind.NUMLIT))
     {
+      _unimplemented("ASSIGN VALUE TO LITERAL");
       self.inc();
-      Ast* value = malloc(Ast.sizeof);
-      value.unyon.literal.token = self.token();
-      ast.unyon.var_decl.value = value;
-      io::print("\n");
-      self.token().print();
-      io::print("\n");
     } else {
+      _unimplemented("PARSE EXPRESSION");
       //TODO: parse user defined expression
-      _unimplemented();
     }
   }
   self.inc();
 
+  io::print("PARSE DECLARATION\n");
   //TODO: handle non trivial type
   self.nodes.push(ast);
 }
@@ -192,7 +190,7 @@ fn void Parser.parse_fn(&self) {
   _unimplemented();
 }
 
-macro void _unimplemented() {
-  libc::printf("[Parser]: Unimplemented At: %s Line %d\n", $$FUNC, $$LINE);
+macro void _unimplemented(String s = "") {
+  libc::printf("[Parser]: Unimplemented %.*s At: %s Line %d\n", s.len, s, $$FUNC, $$LINE);
   libc::exit(1);
 }

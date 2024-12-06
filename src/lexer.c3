@@ -33,11 +33,11 @@ extern fn CInt is_alpha(char c) @extern("isalpha");
 extern fn CInt is_space(char c) @extern("isspace");
 extern fn CInt is_alnum(char c) @extern("isalnum");
 
-fn bool Token.is(&self, TKind kind) {
+fn bool Token.is(&self, TKind kind) @inline {
   return self.kind == kind;
 }
 
-fn void Token.print(&self) {
+macro void Token.print(&self) {
   String s;
   switch (self.kind) {
     case STR:
@@ -81,7 +81,7 @@ fn void Token.print(&self) {
     case OPENBRACK:
       s = "OPENBRACK";
   }
-  io::print(s);
+  io::printf("%.*s at: line: %d func: %s\n", s.len, s, $$LINE, $$FUNC);
 }
 
 fn bool ZString.match(&self, String s) @inline {
@@ -113,7 +113,6 @@ fn void Lexer.parse_str(&self) {
     libc::exit(1);
     return;
   }
-
   usz end = self.i;
   self.push_type(TKind.STR, end - start);
 }
@@ -131,7 +130,9 @@ fn void Lexer.parse_num(&self) {
     return;
   }
   usz end = self.i;
+  self.i = start;
   self.push_type(TKind.NUMLIT, end - start, false);
+  self.inc();
 }
 
 fn void Lexer.parse_sym(&self) {
@@ -145,7 +146,9 @@ fn void Lexer.parse_sym(&self) {
     return;
   }
   usz end = self.i;
-  self.push_type(TKind.SYMBOL, end - start, false);
+  self.i = start;
+  self.push_type(TKind.SYMBOL, end - start);
+  self.inc();
 }
 
 fn void Lexer.inc(&self) {
@@ -218,7 +221,9 @@ fn void Lexer.lex(&self) {
     case '\'': self.parse_char();
     default:
       if (is_digit(curr)) { self.parse_num(); }
-      else if (curr == '_' || (bool)is_alnum(curr)) { self.parse_sym(); }
+      else if (curr == '_' || is_alnum(curr)) {
+        self.parse_sym();
+      }
       else {
         //TODO: ADD ERROR HERE 
         io::print("unexpetcetd token");
