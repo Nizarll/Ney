@@ -14,11 +14,13 @@ fn void print_usage() {
   io::print(
     "usage: ney [file] [options].\n\n"
     "Options:\n"
-    "-eo: enable optimizations\n"
-    "-w: enable warnings\n"
-    "-bc: outputs a compiled bytecode file\n"
-    "-o: specify the name of the output\n"
+    "-eo, --enableopts: enable optimizations.\n"
+    "-w, --warnings: enable warnings\n"
+    "-h, --help: display warnings.\n"
+    "-bc, --bytecode: outputs a compiled bytecode file.\n"
+    "-o, --output: specify the name of the output.\n\n"
   );
+  libc::exit(libc::EXIT_FAILURE);
 }
 
 struct Params {
@@ -41,7 +43,7 @@ fn int main(String[] args)
     libc::exit(libc::EXIT_FAILURE);
   }
 
-  Lexer lexer = lexer::init(utils::string_to_slice(buffer!!));
+  Lexer lexer = lexer::init((buffer!!).to_slice());
   lexer.lex();
   @pool() {
     Parser parser = parser::init(&lexer.tokens);

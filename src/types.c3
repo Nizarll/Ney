@@ -1,10 +1,12 @@
 module types;
 import utils;
+import parser;
 
 enum DefaultType {
-  CHAR, BOOL, FUNC, STR,
-  NUMBER, LAMBDA, STRUCT,
-  ARRAY, ERROR
+  BOOL, FUNC, STR,
+  U64, U32, U16, CHAR,
+  LAMBDA, STRUCT,
+  ARRAY, F32, F64,
 }
 
 struct Struct {
@@ -28,6 +30,7 @@ struct Type {
 }
 
 fn String Type.to_str(&self) {
-  //TODO:
-  return "UNIMPLEMENTED TYPE.TO_STR()";
+  parser::_unimplemented("UNIMPLEMENTED TYPE.TO_STR()");
+  return "";
 }
+

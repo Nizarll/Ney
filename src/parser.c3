@@ -1,9 +1,9 @@
 import libc;
 import ast;
 import std::io;
-import utils;
 import types;
 import lexer;
+import utils;
 import std::collections;
 
 fault ParserFaults {
@@ -22,10 +22,10 @@ struct Parser {
 }
 
 String[*] keywords = {
-  "let", "func", "as", "end", "match",
+  "let", "fn", "as", "end", "match",
   "then", "for", "foreach", "while",
   "len", "typeof", "if", "elseif", "else",
-  "import", "export"
+  "import", "export", "do",
 };
 
 String[*] types = {
@@ -91,7 +91,7 @@ fn bool Parser.is_stmt(&self) {
   return false;
 }
 
-fn String* Parser.get_trivial_type(&self) {
+fn String* Parser.get_primitive_type(&self) {
   foreach(&type : types) {
     if (self.match(*type)) return type;
   }
@@ -115,6 +115,12 @@ fn bool Parser.is_assign(&self) {
   return true;
 }
 
+fn bool Parser.is_comparison(&self) @inline {
+  return (self.is_token(TKind.ISEQ)   || self.is_token(TKind.NOTEQ)  ||
+          self.is_token(TKind.LESSEQ) || self.is_token(TKind.GREATEREQ) ||
+          self.is_token(TKind.LESS)   || self.is_token(TKind.GREATER));
+}
+
 fn bool Parser.is_call(&self) {
   //TODO:
   TKind[*] kinds = {TKind.SYMBOL, TKind.OPENPAREN};
@@ -122,6 +128,13 @@ fn bool Parser.is_call(&self) {
     if (!self.is_token(kind)) return false;
   }
   return false;
+}
+
+fn bool Parser.is_lit(&self, uint offset = 0) {
+  return (self.peek(2).is(TKind.STR)     ||
+          self.peek(2).is(TKind.CHAR)    ||
+          self.peek(2).is(TKind.CHAR)    ||
+          self.peek(2).is(TKind.NUMLIT));
 }
 
 fn void Parser.parse_stmt(&self) {
@@ -140,57 +153,63 @@ fn void Parser.parse_match_stmt(&self) {
 }
 
 fn void Parser.parse_decl(&self) {
-  Ast *ast = malloc(Ast.sizeof);
-  //TODO: add error system;
-  ast.kind = AstKind.VARDECL;
-  String* trivial_type = self.get_trivial_type();
-  if (trivial_type) {
-    ast.unyon.var_decl.type.name = *trivial_type;
-    ast.unyon.var_decl.has_value = true;
-  } else {
-    _unimplemented("HANDLE USER DEFINED TYPES");
-    //TODO: handle declaration of variable using user defined type!
-  }
+  Ast *ast;
+  String* primitive_type = self.get_primitive_type();
 
-  self.inc();
-
-  Token name_tok = self.token();
-
-  name_tok.print();
-
+  Token name_tok = self.peek();
   if (!name_tok.is(TKind.SYMBOL)) {
-    //TODO: add error system : expected variable name after variable type in declaration !
-    _unimplemented();
-  }
-
-  ast.unyon.var_decl.name = name_tok.view;
-
-  if (self.peek().is(TKind.EQ)) {
-    //TODO: handle parsing of expression
-    if (self.peek(2).is(TKind.STR) ||
-    self.peek(2).is(TKind.CHAR)    ||
-    self.peek(2).is(TKind.CHAR)    ||
-    self.peek(2).is(TKind.NUMLIT))
-    {
-      _unimplemented("ASSIGN VALUE TO LITERAL");
-      self.inc();
-    } else {
-      _unimplemented("PARSE EXPRESSION");
-      //TODO: parse user defined expression
-    }
+    _unimplemented("EXPECTED VARIABLE NAME + TODO: add correct error system");
   }
   self.inc();
 
-  io::print("PARSE DECLARATION\n");
-  //TODO: handle non trivial type
-  self.nodes.push(ast);
+  if (!primitive_type) {
+    _unimplemented("HANDLE USER DEFINED TYPES");
+  }
+
+  self.inc();
+  if (self.token().is(TKind.EQ) && self.is_lit()) {
+      ast = ast::create_decl(
+        name_tok.view,
+        primitive_type.to_slice(),
+        null,
+        ast::PRIMITVE_TYPE
+      );
+      self.inc();
+  } else if (self.peek().is(TKind.EQ)) {
+    _unimplemented("user defined type after equal");
+  }
 }
 
-fn void Parser.parse_fn(&self) {
-  _unimplemented();
+fn Maybe(<Ast*>) parse_expr(&self) {
+  Ast* ast;
+  while (self.is_comparison()) {
+    Ast* left = ;
+    Maybe<Ast*> right = self.parse_term();
+  }
+  return Maybe{ast, ""};
 }
 
-macro void _unimplemented(String s = "") {
+fn Maybe(<Ast*>) parse_term(&self) {
+  Ast* ast;
+  while (self.token.is(TKind.PLUS) || self.token.is(TKind.MINUS)) {
+    Ast* left;
+    Maybe<Ast*> = self.parse_factor();
+  }
+  return unexpected("parse_term unexpected");
+}
+
+fn Maybe(<Ast*>) parse_binexpr(&self) {
+  Ast* ast;
+  while (self.is_binop()) {
+    Ast* left;
+    Maybe<Ast*> right = self.parse_call();
+  }
+  return unexpected("parse_binexpr unexpected");
+}
+
+//fn Maybe()
+
+macro _unimplemented(String s = "") {
   libc::printf("[Parser]: Unimplemented %.*s At: %s Line %d\n", s.len, s, $$FUNC, $$LINE);
   libc::exit(1);
 }

@@ -5,15 +5,31 @@ import std::collections;
 
 // c-imports
 
-enum TKind : uint {
-  PIPE, ISEQ, EQ, EOF,
-  DOT, ARROW, LESSEQ,
-  SYMBOL, NUMLIT, SEMICOL,
-  GREATER, GREATEREQ,
-  OPENPAREN, CLOSEPAREN,
-  CLOSEBRACK, OPENBRACK,
-  COLON, LESS, CHAR, STR,
+enum TKind : uint (String tostr) {
+  PIPE = "PIPE", ISEQ = "ISEQ",
+  EQ = "EQ", EOF = "EOF",
+  PLUS = "PLUS",
+  MINUS = "MINUS",
+  DIV = "DIV",
+  MUL = "MUL",
+  DOT = "DOT",
+  ARROW = "ARROW",
+  LESSEQ = "LESSEQ",
+  SYMBOL = "SYMBOL",
+  NUMLIT = "NUMLIT",
+  SEMICOL = "SEMICOL",
+  GREATER = "GREATER",
+  GREATEREQ = "GREATEREQ",
+  OPENPAREN = "OPENPAREN",
+  CLOSEPAREN = "CLOSEPAREN",
+  CLOSEBRACK = "CLOSEBRACK",
+  OPENBRACK = "OPENBRACK",
+  COLON = "COLON",
+  LESS = "LESS",
+  CHAR = "CHAR",
+  STR = "STR",
 }
+
 
 struct Token {
   TKind kind;
@@ -37,51 +53,12 @@ fn bool Token.is(&self, TKind kind) @inline {
   return self.kind == kind;
 }
 
+fn String Token.tostr(&self) @inline {
+  return self.kind.tostr;
+}
+
 macro void Token.print(&self) {
-  String s;
-  switch (self.kind) {
-    case STR:
-      s = "STR";
-    case CHAR:
-      s = "CHAR";
-    case NUMLIT:
-      s = "NUMLIT";
-    case SYMBOL:
-      s = "SYMBOL";
-    case EOF:
-      s = "EOF";
-    case DOT:
-      s = "DOT";
-    case PIPE:
-      s = "PIPE";
-    case ISEQ:
-      s = "ISEQ";
-    case EQ:
-      s = "EQ";
-    case ARROW:
-      s = "ARROW";
-    case LESSEQ:
-      s = "LESSEQ";
-    case LESS:
-      s = "LESS";
-    case GREATEREQ:
-      s = "GREATEREQ";
-    case GREATER:
-      s = "GREATER";
-    case COLON:
-      s = "COLON";
-    case SEMICOL:
-      s = "SEMICOL";
-    case OPENPAREN:
-      s = "OPENPAREN";
-    case CLOSEPAREN:
-      s = "CLOSEPAREN";
-    case CLOSEBRACK:
-      s = "CLOSEBRACK";
-    case OPENBRACK:
-      s = "OPENBRACK";
-  }
-  io::printf("%.*s at: line: %d func: %s\n", s.len, s, $$LINE, $$FUNC);
+  io::printf("%.*s at: line: %d func: %s\n", self.tostr().len, self.tostr(), $$LINE, $$FUNC);
 }
 
 fn bool ZString.match(&self, String s) @inline {
@@ -195,6 +172,11 @@ fn void Lexer.lex(&self) {
     case '\r': case '\n':
     case ' ':
     self.inc();
+
+    case '+': self.push_type(TKind.PLUS);
+    case '/': self.push_type(TKind.DIV);
+    case '*': self.push_type(TKind.MUL);
+    case '-': self.push_type(TKind.MINUS);
     case '\0': self.push_type(TKind.EOF);
     case ',': self.push_type(TKind.COLON);
     case ';': self.push_type(TKind.SEMICOL);
@@ -226,6 +208,7 @@ fn void Lexer.lex(&self) {
       }
       else {
         //TODO: ADD ERROR HERE 
+        io::print(curr);
         io::print("unexpetcetd token");
         libc::exit(1);
       }

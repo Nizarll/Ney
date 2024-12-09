@@ -1,10 +1,28 @@
 def Location = usz[<2>];
 
-import utils::slice;
-fn Slice(<char>) string_to_slice(String s) {
-  return Slice(<char>){s, s.len};
+module utils::maybe(<Type>);
+struct Maybe {
+  Type data;
+  String message;
 }
 
+fn bool Maybe.err(&self) @inline {
+  return self.data == null;
+}
+
+fn Maybe(<Type>) unexpected(String message) {
+  return Maybe(<Type>){null, message};
+}
+
+//
+module utils::string;
+import utils::slice;
+
+fn Slice(<char>) String.to_slice(self) {
+  return Slice(<char>){self, self.len};
+}
+
+//
 module utils::slice(<Type>);
 import libc;
 
