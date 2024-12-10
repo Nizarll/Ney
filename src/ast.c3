@@ -3,6 +3,7 @@ import utils;
 import lexer;
 import types;
 import std::core::mem;
+import std::collections::list;
 
 enum AstKind {
   BLOCK, IMPORT, VARDECL, FOR, WHILE,
@@ -17,7 +18,7 @@ enum ExprKind {
 
 enum BinopKind {
   SHIFTLEFT, SHIFTRIGHT, GREATEREQ,
-  LESSEQ, ISEQ, NOTEQ, BXOR, BNOT, BOR // BINARY OR
+  LESSEQ, ISEQ, NOTEQ, BXOR, BNOT, BOR, // BINARY OR
   OR
 }
 
@@ -55,7 +56,7 @@ struct Case {
 
 struct Match {
   Ast* symbol;
-  Case case;
+  List(<Condition>) conds;
 }
 
 struct Expression {

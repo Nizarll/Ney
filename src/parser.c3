@@ -117,8 +117,8 @@ fn bool Parser.is_assign(&self) {
 
 fn bool Parser.is_comparison(&self) @inline {
   return (self.is_token(TKind.ISEQ)   || self.is_token(TKind.NOTEQ)  ||
-          self.is_token(TKind.LESSEQ) || self.is_token(TKind.GREATEREQ) ||
-          self.is_token(TKind.LESS)   || self.is_token(TKind.GREATER));
+  self.is_token(TKind.LESSEQ) || self.is_token(TKind.GREATEREQ) ||
+  self.is_token(TKind.LESS)   || self.is_token(TKind.GREATER));
 }
 
 fn bool Parser.is_call(&self) {
@@ -132,9 +132,9 @@ fn bool Parser.is_call(&self) {
 
 fn bool Parser.is_lit(&self, uint offset = 0) {
   return (self.peek(2).is(TKind.STR)     ||
-          self.peek(2).is(TKind.CHAR)    ||
-          self.peek(2).is(TKind.CHAR)    ||
-          self.peek(2).is(TKind.NUMLIT));
+  self.peek(2).is(TKind.CHAR)    ||
+  self.peek(2).is(TKind.CHAR)    ||
+  self.peek(2).is(TKind.NUMLIT));
 }
 
 fn void Parser.parse_stmt(&self) {
@@ -168,35 +168,116 @@ fn void Parser.parse_decl(&self) {
 
   self.inc();
   if (self.token().is(TKind.EQ) && self.is_lit()) {
-      ast = ast::create_decl(
-        name_tok.view,
-        primitive_type.to_slice(),
-        null,
-        ast::PRIMITVE_TYPE
-      );
-      self.inc();
+    ast = ast::create_decl(
+      name_tok.view,
+      primitive_type.to_slice(),
+      null,
+      ast::PRIMITVE_TYPE
+    );
+    self.inc();
   } else if (self.peek().is(TKind.EQ)) {
     _unimplemented("user defined type after equal");
   }
 }
 
-fn Maybe(<Ast*>) parse_expr(&self) {
-  Ast* ast;
+fn Maybe(<Ast*>) Parser.parse_expr(&self) {
+  Maybe<Ast*> left = self.parse_term();
+  if (left.err()) return left;
+
   while (self.is_comparison()) {
-    Ast* left = ;
+    Token op = self.token();
+    self.inc();
+
     Maybe<Ast*> right = self.parse_term();
+    if (right.err()) return right;
+
+    left = Maybe{
+      ast::create_binexpr(left.data, right.data, op);
+    };
   }
-  return Maybe{ast, ""};
+  return left;
 }
 
-fn Maybe(<Ast*>) parse_term(&self) {
-  Ast* ast;
+fn Maybe(<Ast*>) Parser.parse_term(&self) {
+  Ast* left = self.parse_factor();
+  if (left.err()) return left;
+
   while (self.token.is(TKind.PLUS) || self.token.is(TKind.MINUS)) {
-    Ast* left;
-    Maybe<Ast*> = self.parse_factor();
+    Token op = self.token();
+    self.inc();
+
+    Maybe<Ast*> right = self.parse_factor();
+    if (right.err()) return right;
+
+    left = Maybe {
+      ast::create_binexpr(left.data, right.data, op);
+    };
   }
-  return unexpected("parse_term unexpected");
+  return left;
 }
+
+fn Maybe(<Ast*>) Parser.parse_factor(&self) {
+  Ast* left = self.parse_factor();
+
+  if (left.err()) return left;
+
+  //TODO: parse function calls and other factors
+
+}
+
+fn Maybe(<Ast*>) Parser.parse_factor(&self) {
+  if (self.token.is(TKind.NUMBER)) {
+    Token num = self.token();
+    self.inc();
+    return Maybe{ ast::create_number(num.value) };
+  }
+  if (self.token.is(TKind.IDENTIFIER)) {
+    Token id = self.token();
+    self.inc();
+
+    if (self.token.is(TKind.LPAREN)) {
+      self.inc();
+      Maybe<Ast*> args = self.parse_arguments();
+      if (args.err()) return args;
+      if (!self.token.is(TKind.RPAREN)) return ast::unexpected(<Ast*>)("Expected closing parenthesis");
+
+      self.inc();
+      return Maybe{ ast::create_function_call(id.value, args.data) };
+    } else {
+      _unimplemented("variable used in expression");
+      //return Maybe{ ast::create_variable(id.value) };  // Otherwise it's a variable
+    }
+  } else if self.token.is(TKind.LPAREN) {
+    self.inc();
+    
+    Maybe<Ast*> expr = self.parse_expr();
+    if (expr.err()) return expr;
+
+    if (!self.token.is(TKind.RPAREN)) return ast::unexpected(<Ast*>)("Expected closing parenthesis");
+    
+    self.inc();
+    return expr;
+  }
+
+  return ast::unexpected(<Ast*>)("Unexpected token in factor");
+}
+
+fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
+  Maybe<Ast*> args;
+  while !self.token.is(TKind.RPAREN) {
+    Maybe<Ast*> expr = self.parse_expr();
+    if (expr.err()) return expr;
+    args.push(expr.data);  // Add the parsed expression as an argument
+
+    if self.token.is(TKind.COMMA) {
+      self.inc();  // Consume the comma
+    } else {
+      break;  // No more arguments
+    }
+  }
+  return args;
+}
+
 
 fn Maybe(<Ast*>) parse_binexpr(&self) {
   Ast* ast;
@@ -204,7 +285,7 @@ fn Maybe(<Ast*>) parse_binexpr(&self) {
     Ast* left;
     Maybe<Ast*> right = self.parse_call();
   }
-  return unexpected("parse_binexpr unexpected");
+  return ast::unexpected(<Ast*>)("parse_binexpr unexpected");
 }
 
 //fn Maybe()
