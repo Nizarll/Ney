@@ -4,7 +4,7 @@ import std::io;
 import types;
 import lexer;
 import utils;
-import std::collections;
+import std::collections::list;
 
 fault ParserFaults {
   OUT_OF_BOUNDS,
@@ -73,11 +73,10 @@ fn bool Parser.match(&self, String s) @inline {
 }
 
 fn void Parser.parse(&self) {
-  bool printed = false;
-  foreach(&token : self.tokens) {
-    token.print();
-  }
-  self.i = 0;
+ // foreach(&token : self.tokens) {
+ //   token.print();
+ // }
+ // self.i = 0;
   while (!self.is_eof()) {
     if (self.is_stmt()) self.parse_stmt();
   }
@@ -131,7 +130,7 @@ fn bool Parser.is_call(&self) {
 }
 
 fn bool Parser.is_lit(&self, uint offset = 0) {
-  return (self.peek(2).is(TKind.STR)     ||
+  return (self.peek(2).is(TKind.STR) ||
   self.peek(2).is(TKind.CHAR)    ||
   self.peek(2).is(TKind.CHAR)    ||
   self.peek(2).is(TKind.NUMLIT));
@@ -167,125 +166,130 @@ fn void Parser.parse_decl(&self) {
   }
 
   self.inc();
-  if (self.token().is(TKind.EQ) && self.is_lit()) {
+  if (self.token().is(TKind.EQ)) {
+    
+    self.inc(); // GO BEYOND EQUAL
+
+    Maybe(<Ast*>) value = self.parse_expr();
+
+    if (value.err()) {
+      io::print(value.message);
+      io::print("\n");
+      _unimplemented("handle value of expr in equal");
+    }
+
     ast = ast::create_decl(
       name_tok.view,
       primitive_type.to_slice(),
-      null,
+      value.data,
       ast::PRIMITVE_TYPE
     );
-    self.inc();
+    
   } else if (self.peek().is(TKind.EQ)) {
     _unimplemented("user defined type after equal");
   }
 }
 
 fn Maybe(<Ast*>) Parser.parse_expr(&self) {
-  Maybe<Ast*> left = self.parse_term();
+
+  Maybe(<Ast*>) left = self.parse_term();
   if (left.err()) return left;
 
   while (self.is_comparison()) {
     Token op = self.token();
     self.inc();
 
-    Maybe<Ast*> right = self.parse_term();
+    Maybe(<Ast*>) right = self.parse_term();
     if (right.err()) return right;
 
     left = Maybe{
-      ast::create_binexpr(left.data, right.data, op);
+      ast::create_binexpr(left.data, right.data, op),
+      ""
     };
   }
   return left;
 }
 
 fn Maybe(<Ast*>) Parser.parse_term(&self) {
-  Ast* left = self.parse_factor();
+  Maybe(<Ast*>) left = self.parse_factor();
   if (left.err()) return left;
 
-  while (self.token.is(TKind.PLUS) || self.token.is(TKind.MINUS)) {
+  while (self.token().is(TKind.PLUS) || self.token().is(TKind.MINUS)) {
     Token op = self.token();
     self.inc();
 
-    Maybe<Ast*> right = self.parse_factor();
+    Maybe(<Ast*>) right = self.parse_factor();
     if (right.err()) return right;
 
     left = Maybe {
-      ast::create_binexpr(left.data, right.data, op);
+      ast::create_binexpr(left.data, right.data, op),
+      ""
     };
   }
   return left;
 }
 
 fn Maybe(<Ast*>) Parser.parse_factor(&self) {
-  Ast* left = self.parse_factor();
 
-  if (left.err()) return left;
-
-  //TODO: parse function calls and other factors
-
-}
-
-fn Maybe(<Ast*>) Parser.parse_factor(&self) {
-  if (self.token.is(TKind.NUMBER)) {
+  if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
-    return Maybe{ ast::create_number(num.value) };
+    return Maybe{ ast::create_number(num), "" };
   }
-  if (self.token.is(TKind.IDENTIFIER)) {
+
+  if (self.token().is(TKind.SYMBOL)) {
     Token id = self.token();
     self.inc();
 
-    if (self.token.is(TKind.LPAREN)) {
+    if (self.token().is(TKind.OPENPAREN)) {
+      // Handle function call
       self.inc();
-      Maybe<Ast*> args = self.parse_arguments();
+      Maybe(<Ast*>) args = self.parse_arguments();
       if (args.err()) return args;
-      if (!self.token.is(TKind.RPAREN)) return ast::unexpected(<Ast*>)("Expected closing parenthesis");
+
+      if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
 
       self.inc();
-      return Maybe{ ast::create_function_call(id.value, args.data) };
+      io::print("close paren of func call");
+      return Maybe{ ast::create_function_call(id, args), "" };
     } else {
-      _unimplemented("variable used in expression");
-      //return Maybe{ ast::create_variable(id.value) };  // Otherwise it's a variable
+      return Maybe{ ast::create_variable(id), "" };
     }
-  } else if self.token.is(TKind.LPAREN) {
+  }
+
+  if (self.token().is(TKind.OPENPAREN)) {
     self.inc();
-    
-    Maybe<Ast*> expr = self.parse_expr();
+
+    Maybe(<Ast*>) expr = self.parse_expr();
     if (expr.err()) return expr;
 
-    if (!self.token.is(TKind.RPAREN)) return ast::unexpected(<Ast*>)("Expected closing parenthesis");
-    
+    if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
+    io::print("closeparen");
     self.inc();
     return expr;
   }
 
-  return ast::unexpected(<Ast*>)("Unexpected token in factor");
+  return maybe::unexpected(<Ast*>)("Unexpected token in factor");
 }
 
 fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
-  Maybe<Ast*> args;
-  while !self.token.is(TKind.RPAREN) {
-    Maybe<Ast*> expr = self.parse_expr();
+  //TODO:parse arguments depending on function to give better errors
+  Maybe(<Ast*>) args;
+  io::print("\n\n");
+  while (!self.token().is(TKind.CLOSEPAREN)) {
+    Maybe(<Ast*>) expr = self.parse_expr();
     if (expr.err()) return expr;
-    args.push(expr.data);  // Add the parsed expression as an argument
-
-    if self.token.is(TKind.COMMA) {
-      self.inc();  // Consume the comma
+    //args.push(expr.data);
+    if (self.token().is(TKind.CLOSEPAREN)) {
+      continue;
+    } else if (self.token().is(TKind.COLON)) {
+      self.inc();
     } else {
-      break;  // No more arguments
+      return maybe::unexpected(<Ast*>)("Unexpected token here");
     }
   }
+  args = Maybe { mem::new(Ast), "" };
   return args;
-}
-
-
-fn Maybe(<Ast*>) parse_binexpr(&self) {
-  Ast* ast;
-  while (self.is_binop()) {
-    Ast* left;
-    Maybe<Ast*> right = self.parse_call();
-  }
-  return ast::unexpected(<Ast*>)("parse_binexpr unexpected");
 }
 
 //fn Maybe()

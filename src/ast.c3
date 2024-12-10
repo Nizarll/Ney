@@ -49,7 +49,7 @@ struct Binexpr {
   BinopKind kind;
 }
 
-struct Case {
+struct Condition {
   Ast* condition;
   Ast* block;
 }
@@ -69,10 +69,8 @@ struct Expression {
   }
 }
 
-
 struct Ast {
   AstKind kind;
-  AstUnion unyon;
   Location loc;
   Slice(<char>) slice;
   union {
@@ -90,7 +88,7 @@ fn Ast* create_decl(
   bool is_primitive = false,
   Ast* base_value = null)
 {
-  Ast* ast = mem::new(Ast); //TODO:
+  Ast* ast = mem::new(Ast);
   ast.kind = AstKind.VARDECL;
 
   ast.var_decl.name = varname;
@@ -98,10 +96,36 @@ fn Ast* create_decl(
   ast.var_decl.value = value;
   ast.var_decl.base_value = base_value;
 
+  //TODO:
+  
   //ast.unyon.var_decl.type = Type{
   //  .name = typename,
   //  .is_primitive = is_primitive
   //};
 
+  return ast;
+}
+
+fn Ast* create_function_call(...) {
+  //TODO:
+  Ast* ast = mem::new(Ast);
+  return ast;
+}
+
+fn Ast* create_binexpr(Ast* lhs, Ast* rhs, Token op) {
+  //TODO:
+  Ast* ast = mem::new(Ast);
+  return ast;
+}
+
+fn Ast* create_number(Token token) {
+  //TODO:
+  Ast* ast = mem::new(Ast);
+  return ast;
+}
+
+fn Ast* create_variable(Token token) {
+  //TODO:
+  Ast* ast = mem::new(Ast);
   return ast;
 }

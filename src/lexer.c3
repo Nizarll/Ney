@@ -6,28 +6,18 @@ import std::collections;
 // c-imports
 
 enum TKind : uint (String tostr) {
-  PIPE = "PIPE", ISEQ = "ISEQ",
-  EQ = "EQ", EOF = "EOF",
-  PLUS = "PLUS",
-  MINUS = "MINUS",
-  DIV = "DIV",
-  MUL = "MUL",
-  DOT = "DOT",
-  ARROW = "ARROW",
-  LESSEQ = "LESSEQ",
-  SYMBOL = "SYMBOL",
-  NUMLIT = "NUMLIT",
-  SEMICOL = "SEMICOL",
-  GREATER = "GREATER",
-  GREATEREQ = "GREATEREQ",
-  OPENPAREN = "OPENPAREN",
-  CLOSEPAREN = "CLOSEPAREN",
+  EOF = "EOF", PLUS = "PLUS", PIPE = "PIPE",
+  ISEQ = "ISEQ", NOTEQ = "NOTEQ", EQ = "EQ",
+  MINUS = "MINUS", DIV = "DIV", MUL = "MUL",
+  DOT = "DOT", NOT = "NOT", ARROW = "ARROW",
+  LESSEQ = "LESSEQ", SYMBOL = "SYMBOL",
+  NUMLIT = "NUMLIT", SEMICOL = "SEMICOL",
+  GREATER = "GREATER", OPENBRACK = "OPENBRACK",
+  COLON = "COLON", LESS = "LESS", CHAR = "CHAR",
+  STR = "STR", SHIFTLEFT = "SHIFTLEFT",
+  SHIFTRIGHT = "SHIFHTRIGHT", GREATEREQ = "GREATEREQ",
+  OPENPAREN = "OPENPAREN", CLOSEPAREN = "CLOSEPAREN",
   CLOSEBRACK = "CLOSEBRACK",
-  OPENBRACK = "OPENBRACK",
-  COLON = "COLON",
-  LESS = "LESS",
-  CHAR = "CHAR",
-  STR = "STR",
 }
 
 
@@ -58,7 +48,10 @@ fn String Token.tostr(&self) @inline {
 }
 
 macro void Token.print(&self) {
-  io::printf("%.*s at: line: %d func: %s\n", self.tostr().len, self.tostr(), $$LINE, $$FUNC);
+  libc::printf("%.*s at: content:%.*s line: %d, func: %s\n", 
+  self.tostr().len, self.tostr(),
+  self.view.len, self.view.ptr,
+  $$LINE, $$FUNC);
 }
 
 fn bool ZString.match(&self, String s) @inline {
@@ -125,7 +118,6 @@ fn void Lexer.parse_sym(&self) {
   usz end = self.i;
   self.i = start;
   self.push_type(TKind.SYMBOL, end - start);
-  self.inc();
 }
 
 fn void Lexer.inc(&self) {
@@ -192,10 +184,16 @@ fn void Lexer.lex(&self) {
       default: self.push_type(TKind.EQ);
     }
     case '<': switch(self.peek()) {
+      case '<': self.push_type(TKind.SHIFTLEFT, 2);
       case '=': self.push_type(TKind.LESSEQ, 2);
       default: self.push_type(TKind.LESS);
     }
+    case '!': switch(self.peek()) {
+      case '=': self.push_type(TKind.NOTEQ, 2);
+      default: self.push_type(TKind.NOT);
+    }
     case '>': switch(self.peek()) {
+      case '>': self.push_type(TKind.SHIFTRIGHT, 2);
       case '=': self.push_type(TKind.GREATEREQ, 2);
       default: self.push_type(TKind.GREATER);
     }
