@@ -17,8 +17,8 @@ end
 ```
 
 WIP: 
-  - [v] Lexer.
-  - [-] Ast.
-  - [-] Parser.
-  - [x] bytecode generator
-  - [x] bytecode interpreter
+  - [x] Lexer.
+  - [x] Ast.
+  - [x] Parser.
+  - [ ] bytecode generator
+  - [ ] bytecode interpreter
