@@ -230,14 +230,14 @@ fn Maybe(<Ast*>) Parser.parse_term(&self) {
 }
 
 fn Maybe(<Ast*>) Parser.parse_factor(&self) {
+  Maybe(<Ast*>) left;
 
+  // Parse numbers, variables, or parenthesized expressions as the base factor
   if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
-    return Maybe{ ast::create_number(num), "" };
-  }
-
-  if (self.token().is(TKind.SYMBOL)) {
+    left = Maybe { ast::create_number(num), "" };
+  } else if (self.token().is(TKind.SYMBOL)) {
     Token id = self.token();
     self.inc();
 
@@ -250,32 +250,41 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
       if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
 
       self.inc();
-      io::print("close paren of func call");
-      return Maybe{ ast::create_function_call(id, args), "" };
+      left = Maybe { ast::create_function_call(id, args), "" };
     } else {
-      return Maybe{ ast::create_variable(id), "" };
+      left = Maybe { ast::create_variable(id), "" };
     }
-  }
-
-  if (self.token().is(TKind.OPENPAREN)) {
+  } else if (self.token().is(TKind.OPENPAREN)) {
     self.inc();
-
-    Maybe(<Ast*>) expr = self.parse_expr();
-    if (expr.err()) return expr;
+    left = self.parse_expr();
+    if (left.err()) return left;
 
     if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
-    io::print("closeparen");
     self.inc();
-    return expr;
+  } else {
+    return maybe::unexpected(<Ast*>)("Unexpected token in factor");
   }
 
-  return maybe::unexpected(<Ast*>)("Unexpected token in factor");
+  // Handle multiplication and division
+  while (self.token().is(TKind.MUL) || self.token().is(TKind.DIV)) {
+    Token op = self.token();
+    self.inc();
+
+    Maybe(<Ast*>) right = self.parse_factor();  // Recursively parse the right-hand side
+    if (right.err()) return right;
+
+    left = Maybe {
+      ast::create_binexpr(left.data, right.data, op),
+      ""
+    };
+  }
+
+  return left;
 }
 
 fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
   //TODO:parse arguments depending on function to give better errors
   Maybe(<Ast*>) args;
-  io::print("\n\n");
   while (!self.token().is(TKind.CLOSEPAREN)) {
     Maybe(<Ast*>) expr = self.parse_expr();
     if (expr.err()) return expr;
