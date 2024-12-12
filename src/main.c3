@@ -35,9 +35,10 @@ fn Params parse_args(String[] args) {
 
 fn int main(String[] args)
 {
-  Params params = parse_args(args);
+  //Params params = parse_args(args);
 
-  String! buffer = (String) io::file::load_new(args[1]);
+  //String! buffer = (String) io::file::load_new(args[1]);
+  String! buffer = (String) io::file::load_new("tests/test.ney");
   if (catch excuse = buffer) {
     io::print("[error]: file does not exist\n");
     libc::exit(libc::EXIT_FAILURE);

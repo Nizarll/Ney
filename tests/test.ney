@@ -1,4 +1,6 @@
-u64 a
-u64 b
-u64 c
-u64 d
+uint fib(uint n)
+  if (n <= 1) return 1 end
+  return fib(n) + fib(n-1)
+end
+
+uint myfib = fib(5)

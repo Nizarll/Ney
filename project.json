@@ -34,5 +34,5 @@
   // Global settings.
   // CPU name, used for optimizations in the LLVM backend.
   "cpu": "generic",
-  "opt": "Os",
+  "opt": "Oz",
 }

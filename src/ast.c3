@@ -2,13 +2,14 @@ module ast;
 import utils;
 import lexer;
 import types;
+import std::io;
 import std::core::mem;
 import std::collections::list;
 
 enum AstKind {
-  BLOCK, IMPORT, VARDECL, FOR, WHILE,
-  FOREACH, RETURN, CONTINUE,
-  BREAK //...
+  FNCALLPARAMS, BLOCK, IMPORT,
+  VARDECL, FOR, WHILE, FOREACH,
+  RETURN, CONTINUE, BREAK //...
 }
 
 enum ExprKind {
@@ -54,6 +55,10 @@ struct Condition {
   Ast* block;
 }
 
+struct FuncParams {
+  List(<Ast*>) list;
+}
+
 struct Match {
   Ast* symbol;
   List(<Condition>) conds;
@@ -78,6 +83,7 @@ struct Ast {
     Literal literal;
     VarDecl var_decl;
     TypeDecl type_decl;
+    FuncParams fn_params;
   }
 }
 
@@ -127,5 +133,13 @@ fn Ast* create_number(Token token) {
 fn Ast* create_variable(Token token) {
   //TODO:
   Ast* ast = mem::new(Ast);
+  return ast;
+}
+
+fn Ast* create_fnc_params(List(<Ast*>)* list) {
+  Ast* ast = mem::new(Ast);
+  ast.kind = AstKind.FNCALLPARAMS;
+  ast.fn_params.list = *list;
+  //TODO:
   return ast;
 }

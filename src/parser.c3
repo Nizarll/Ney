@@ -29,6 +29,7 @@ String[*] keywords = {
 };
 
 String[*] types = {
+  "uint", "int", "float", "double", // for beginners these are defaulted to u32, i32, f32, and f64
   "u64", "u32", "u16", "u8",
   "f32", "f64", "str", "char",
   "bool",
@@ -83,7 +84,7 @@ fn void Parser.parse(&self) {
 }
 
 fn bool Parser.is_stmt(&self) {
-  if (self.is_token(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) return true;
+  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) return true;
   if (self.is_ns_type()) return true;
   if (self.is_assign()) return true;
   if (self.is_call()) return true;
@@ -107,7 +108,7 @@ fn bool Parser.is_assign(&self) {
   TKind[*] kinds = {TKind.SYMBOL, TKind.EQ};
   //TODO: refactor this bullshit im lazy af
   foreach (kind : kinds) {
-    if (!self.is_token(kind)) {
+    if (!self.token().is(kind)) {
       return false;
     }
   }
@@ -115,17 +116,16 @@ fn bool Parser.is_assign(&self) {
 }
 
 fn bool Parser.is_comparison(&self) @inline {
-  return (self.is_token(TKind.ISEQ)   || self.is_token(TKind.NOTEQ)  ||
-  self.is_token(TKind.LESSEQ) || self.is_token(TKind.GREATEREQ) ||
-  self.is_token(TKind.LESS)   || self.is_token(TKind.GREATER));
+  return (self.token().is(TKind.ISEQ)   || self.token().is(TKind.NOTEQ)  ||
+  self.token().is(TKind.LESSEQ) || self.token().is(TKind.GREATEREQ) ||
+  self.token().is(TKind.LESS)   || self.token().is(TKind.GREATER));
 }
 
 fn bool Parser.is_call(&self) {
   //TODO:
   TKind[*] kinds = {TKind.SYMBOL, TKind.OPENPAREN};
   foreach (kind : kinds) {
-    if (!self.is_token(kind)) return false;
-  }
+    if (!self.token().is(kind)) return false;
   return false;
 }
 
@@ -137,14 +137,25 @@ fn bool Parser.is_lit(&self, uint offset = 0) {
 }
 
 fn void Parser.parse_stmt(&self) {
-  if (self.is_token(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) self.parse_decl();
+  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) self.parse_decl();
+  if (self.token().is(TKind.SYMBOL) && self.match("if")) self.parse_ifstmt();
   //if (self.is_ns_type());
   //if (self.is_assign());
   //if (self.is_call());
 }
 
-fn void Parser.parse_ifstmt(&self) {
-  _unimplemented();
+fn Maybe(<Ast*>) Parser.parse_ifstmt(&self) {
+  //TODO: do this
+  if (!self.match("if")) return {null, ""};
+  self.inc();
+  
+  Maybe(<Ast*>) expr = self.parse_expr();
+  
+  while (!self.token().match("end")) {
+    //TODO: parse statements here
+  }
+
+  return Maybe(<Ast*>){null, ""};
 }
 
 fn void Parser.parse_match_stmt(&self) {
@@ -172,6 +183,7 @@ fn void Parser.parse_decl(&self) {
 
     Maybe(<Ast*>) value = self.parse_expr();
 
+    //TODO: remove this
     if (value.err()) {
       io::print(value.message);
       io::print("\n");
@@ -191,7 +203,6 @@ fn void Parser.parse_decl(&self) {
 }
 
 fn Maybe(<Ast*>) Parser.parse_expr(&self) {
-
   Maybe(<Ast*>) left = self.parse_term();
   if (left.err()) return left;
 
@@ -231,8 +242,7 @@ fn Maybe(<Ast*>) Parser.parse_term(&self) {
 
 fn Maybe(<Ast*>) Parser.parse_factor(&self) {
   Maybe(<Ast*>) left;
-
-  // Parse numbers, variables, or parenthesized expressions as the base factor
+//TODO: refactor this ugly ass shit
   if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
@@ -282,13 +292,20 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
   return left;
 }
 
+fn Maybe(<Ast*>) Parser.parse_ifstmt(&self) {
+
+}
+
 fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
   //TODO:parse arguments depending on function to give better errors
-  Maybe(<Ast*>) args;
+  Ast* args_ast;
+  List(<Ast*>) params;
   while (!self.token().is(TKind.CLOSEPAREN)) {
     Maybe(<Ast*>) expr = self.parse_expr();
     if (expr.err()) return expr;
-    //args.push(expr.data);
+
+    params.push(expr.data);
+
     if (self.token().is(TKind.CLOSEPAREN)) {
       continue;
     } else if (self.token().is(TKind.COLON)) {
@@ -297,8 +314,9 @@ fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
       return maybe::unexpected(<Ast*>)("Unexpected token here");
     }
   }
-  args = Maybe { mem::new(Ast), "" };
-  return args;
+
+  args_ast = ast::create_fnc_params(&params);
+  return Maybe { args_ast, "" };
 }
 
 //fn Maybe()
