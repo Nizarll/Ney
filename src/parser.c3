@@ -29,7 +29,7 @@ String[*] keywords = {
 };
 
 String[*] types = {
-  "uint", "int", "float", "double", // for beginners these are defaulted to u32, i32, f32, and f64
+  "uint", "int", "float", "double",
   "u64", "u32", "u16", "u8",
   "f32", "f64", "str", "char",
   "bool",
@@ -78,16 +78,22 @@ fn void Parser.parse(&self) {
  //   token.print();
  // }
  // self.i = 0;
+ io::print("\nparsing");
   while (!self.is_eof()) {
+    self.token().print();
     if (self.is_stmt()) self.parse_stmt();
   }
 }
 
 fn bool Parser.is_stmt(&self) {
+  if (self.token().is(TKind.SYMBOL) && self.match("if")) {
+    io::print("is_stmt: matched if stmt\n");
+    return true;
+  }
   if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) return true;
-  if (self.is_ns_type()) return true;
-  if (self.is_assign()) return true;
-  if (self.is_call()) return true;
+  //if (self.is_ns_type()) return true;
+  //if (self.is_assign()) return true;
+  //if (self.is_call()) return true;
   return false;
 }
 
@@ -96,6 +102,15 @@ fn String* Parser.get_primitive_type(&self) {
     if (self.match(*type)) return type;
   }
   return null;
+}
+
+macro Maybe(<Ast*>) Parser.consume(&self, TKind kind, String message) {
+  if (self.token().is(kind)) {
+    self.inc();
+    return {(Ast*)1, ""};
+  }
+  io::printf("expected %s but found %s Func: %s ,At Line %d\n", kind.tostr, self.token().tostr(), $$FUNC, $$LINE);
+  return maybe::unexpected(<Ast*>)(message);
 }
 
 fn bool Parser.is_ns_type(&self) {
@@ -126,6 +141,7 @@ fn bool Parser.is_call(&self) {
   TKind[*] kinds = {TKind.SYMBOL, TKind.OPENPAREN};
   foreach (kind : kinds) {
     if (!self.token().is(kind)) return false;
+  }
   return false;
 }
 
@@ -137,21 +153,31 @@ fn bool Parser.is_lit(&self, uint offset = 0) {
 }
 
 fn void Parser.parse_stmt(&self) {
-  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) self.parse_decl();
-  if (self.token().is(TKind.SYMBOL) && self.match("if")) self.parse_ifstmt();
+  if (self.token().is(TKind.SYMBOL) && self.match("if")) {
+    self.parse_ifstmt();
+    return;
+  }
+  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) {
+    self.parse_decl();
+    return;
+  }
+  _unimplemented("unexpected statement in parse_stmt!");
   //if (self.is_ns_type());
   //if (self.is_assign());
   //if (self.is_call());
 }
 
 fn Maybe(<Ast*>) Parser.parse_ifstmt(&self) {
-  //TODO: do this
-  if (!self.match("if")) return {null, ""};
-  self.inc();
+  Maybe(<Ast*>) ast;
+  if (!self.match("if")) return maybe::unexpected(<Ast*>)("failed to parse if statement");
+
+  ast = self.consume(TKind.SYMBOL, "failed to parse if statement");
+  if (ast.err()) return ast;
   
   Maybe(<Ast*>) expr = self.parse_expr();
   
-  while (!self.token().match("end")) {
+  while (!self.match("end")) {
+    self.inc();
     //TODO: parse statements here
   }
 
@@ -213,7 +239,7 @@ fn Maybe(<Ast*>) Parser.parse_expr(&self) {
     Maybe(<Ast*>) right = self.parse_term();
     if (right.err()) return right;
 
-    left = Maybe{
+    left = Maybe(<Ast*>) {
       ast::create_binexpr(left.data, right.data, op),
       ""
     };
@@ -232,7 +258,7 @@ fn Maybe(<Ast*>) Parser.parse_term(&self) {
     Maybe(<Ast*>) right = self.parse_factor();
     if (right.err()) return right;
 
-    left = Maybe {
+    left = {
       ast::create_binexpr(left.data, right.data, op),
       ""
     };
@@ -246,7 +272,7 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
   if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
-    left = Maybe { ast::create_number(num), "" };
+    left = Maybe(<Ast*>) { ast::create_number(num), "" };
   } else if (self.token().is(TKind.SYMBOL)) {
     Token id = self.token();
     self.inc();
@@ -260,9 +286,9 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
       if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
 
       self.inc();
-      left = Maybe { ast::create_function_call(id, args), "" };
+      left = Maybe(<Ast*>) { ast::create_function_call(id, args), "" };
     } else {
-      left = Maybe { ast::create_variable(id), "" };
+      left = Maybe(<Ast*>) { ast::create_variable(id), "" };
     }
   } else if (self.token().is(TKind.OPENPAREN)) {
     self.inc();
@@ -283,7 +309,7 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
     Maybe(<Ast*>) right = self.parse_factor();  // Recursively parse the right-hand side
     if (right.err()) return right;
 
-    left = Maybe {
+    left = Maybe(<Ast*>) {
       ast::create_binexpr(left.data, right.data, op),
       ""
     };
@@ -292,18 +318,14 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
   return left;
 }
 
-fn Maybe(<Ast*>) Parser.parse_ifstmt(&self) {
-
-}
-
 fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
   //TODO:parse arguments depending on function to give better errors
   Ast* args_ast;
   List(<Ast*>) params;
   while (!self.token().is(TKind.CLOSEPAREN)) {
     Maybe(<Ast*>) expr = self.parse_expr();
+    
     if (expr.err()) return expr;
-
     params.push(expr.data);
 
     if (self.token().is(TKind.CLOSEPAREN)) {
@@ -316,10 +338,8 @@ fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
   }
 
   args_ast = ast::create_fnc_params(&params);
-  return Maybe { args_ast, "" };
+  return Maybe(<Ast*>){ args_ast, "" };
 }
-
-//fn Maybe()
 
 macro _unimplemented(String s = "") {
   libc::printf("[Parser]: Unimplemented %.*s At: %s Line %d\n", s.len, s, $$FUNC, $$LINE);

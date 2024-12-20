@@ -6,18 +6,16 @@ import std::collections;
 // c-imports
 
 enum TKind : uint (String tostr) {
-  EOF = "EOF", PLUS = "PLUS", PIPE = "PIPE",
-  ISEQ = "ISEQ", NOTEQ = "NOTEQ", EQ = "EQ",
-  MINUS = "MINUS", DIV = "DIV", MUL = "MUL",
-  DOT = "DOT", NOT = "NOT", ARROW = "ARROW",
-  LESSEQ = "LESSEQ", SYMBOL = "SYMBOL",
-  NUMLIT = "NUMLIT", SEMICOL = "SEMICOL",
-  GREATER = "GREATER", OPENBRACK = "OPENBRACK",
-  COLON = "COLON", LESS = "LESS", CHAR = "CHAR",
-  STR = "STR", SHIFTLEFT = "SHIFTLEFT",
+  EOF = "EOF", PLUS = "PLUS", PIPE = "PIPE", ISEQ = "ISEQ",
+  NOTEQ = "NOTEQ", EQ = "EQ", MINUS = "MINUS", DIV = "DIV",
+  DOT = "DOT", NOT = "NOT", ARROW = "ARROW", LESSEQ = "LESSEQ",
+  SYMBOL = "SYMBOL", NUMLIT = "NUMLIT", SEMICOL = "SEMICOL",
+  GREATER = "GREATER", OPENBRACK = "OPENBRACK", MUL = "MUL",
+  COLON = "COLON", LESS = "LESS", CLOSECURLY = "CLOSECURLY",
+  CHAR = "CHAR", STR = "STR", SHIFTLEFT = "SHIFTLEFT",
   SHIFTRIGHT = "SHIFHTRIGHT", GREATEREQ = "GREATEREQ",
   OPENPAREN = "OPENPAREN", CLOSEPAREN = "CLOSEPAREN",
-  CLOSEBRACK = "CLOSEBRACK",
+  CLOSEBRACK = "CLOSEBRACK", OPENCURLY = "OPENCURLY"
 }
 
 
@@ -164,7 +162,6 @@ fn void Lexer.lex(&self) {
     case '\r': case '\n':
     case ' ':
     self.inc();
-
     case '+': self.push_type(TKind.PLUS);
     case '/': self.push_type(TKind.DIV);
     case '*': self.push_type(TKind.MUL);
@@ -172,6 +169,8 @@ fn void Lexer.lex(&self) {
     case '\0': self.push_type(TKind.EOF);
     case ',': self.push_type(TKind.COLON);
     case ';': self.push_type(TKind.SEMICOL);
+    case '{': self.push_type(TKind.OPENCURLY);
+    case '}': self.push_type(TKind.CLOSECURLY);
     case '(': self.push_type(TKind.OPENPAREN);
     case ')': self.push_type(TKind.CLOSEPAREN);
     case ']': self.push_type(TKind.CLOSEBRACK);
@@ -206,7 +205,9 @@ fn void Lexer.lex(&self) {
       }
       else {
         //TODO: ADD ERROR HERE 
-        io::print(curr);
+        io::print("\n");
+        io::printf("%c", curr);
+        io::print("\n");
         io::print("unexpetcetd token");
         libc::exit(1);
       }

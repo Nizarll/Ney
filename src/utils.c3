@@ -1,17 +1,37 @@
 def Location = usz[<2>];
 
 module utils::maybe(<Type>);
+import std::core::types;
 struct Maybe {
   Type data;
   String message;
 }
 
-fn bool Maybe.err(&self) @inline {
-  return self.data == null;
+macro bool Maybe.err(&self) {
+  $switch(Type.kindof)
+    $case(TypeKind.BOOL):
+      return self.data == false;
+    $default:
+      $if (types::is_numerical(Type)):
+        return self.data == 0;
+      $else
+        return self.data == null;
+      $endif
+  $endswitch
 }
 
-fn Maybe(<Type>) unexpected(String message) {
-  return Maybe(<Type>){null, message};
+
+macro Maybe(<Type>) unexpected(String message) {
+  $switch(Type.kindof)
+    $case(TypeKind.BOOL):
+      return Maybe(<Type>){false, message};
+    $default:
+      $if (types::is_numerical(Type)):
+        return Maybe(<Type>){0, message};
+      $else
+        return Maybe(<Type>){null, message};
+      $endif
+  $endswitch
 }
 
 //
