@@ -162,16 +162,14 @@ fn void Parser.parse_stmt(&self) {
 }
 
 fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
-  Maybe(<Ast*>) ast;
-  Maybe(<Ast*>) parse_error;
-  Maybe(<Ast*>) expected_block_error;
+  Maybe(<Ast*>) ast, parse_error, expected_block_error;
 
   parse_error = maybe::unexpected(<Ast*>)("failed to parse if statement");
   expected_block_error = maybe::unexpected(<Ast*>)("expected if or elseif statement");
   
   if (!self.match(variant == IF ? "if": variant == ELSE ? "elseif" : "else")) return parse_error;
   if (variant != IF) {
-    if (!self.nodes.last().is_ifblock()) return expected_block_error;
+    if (!self.nodes.last()!!.is_ifblock()) return expected_block_error;
   }
 
   ast = self.consume(TKind.SYMBOL, "failed to parse if statement");
