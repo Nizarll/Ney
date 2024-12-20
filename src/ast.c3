@@ -14,7 +14,7 @@ enum AstKind {
 
 enum ExprKind {
   BINEXPR, UNARY, LITERAL, ACCESS,
-  CAST, MATCH, IFSTMT
+  CAST, MATCH,
 }
 
 enum BinopKind {
