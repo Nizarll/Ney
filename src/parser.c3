@@ -74,8 +74,14 @@ fn bool Parser.match(&self, String s) @inline {
 
 fn void Parser.parse(&self) {
   while (!self.is_eof()) {
-    self.token().print();
-    if (self.is_stmt()) self.parse_stmt();
+    if (self.is_stmt()) {
+      Maybe(<Ast*>) ast = self.parse_stmt();
+      if (ast.err()) {
+        io::printf("error: %s \n", ast.message);
+        return;
+      }
+      self.nodes.push(ast.data);
+    }
   }
 }
 
@@ -135,57 +141,77 @@ fn bool Parser.is_lit(&self, uint offset = 0) {
 }
 
 fn bool Parser.is_stmt(&self) {
-  if (self.token().is(TKind.SYMBOL) && self.match("if")) { return true; }
-  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) { return true; }
-  if (self.token().is(TKind.SYMBOL) && self.match("else")) { return true; }
-  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) { return true; }
+  if (self.token().is(TKind.SYMBOL) && self.match("if")) {
+    //DEBUG
+    io::print("parsing if\n");
+    return true; }
+  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) {
+    //DEBUG
+    io::print("parsing elseif\n");
+    return true; }
+  if (self.token().is(TKind.SYMBOL) && self.match("else")) {
+    //DEBUG
+    io::print("else\n");
+    return true; }
+  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) {
+    io::printf("current cursor is : %d\n", self.i);
+    self.token().print();
+    io::print("parsing decl");
+    return true;
+  }
   return false;
 }
 
-fn void Parser.parse_stmt(&self) {
-  if (self.token().is(TKind.SYMBOL) && self.match("if")) {
-    self.parse_ifstmt(IF);
-    return;
-  }
-  if (self.token().is(TKind.SYMBOL) && self.match("elsif")) {
-    self.parse_ifstmt(ELSE);
-    return;
-  }
-  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) {
-    self.parse_ifstmt(ELSEIF);
-    return;
-  }
+fn Maybe(<Ast*>) Parser.parse_stmt(&self) {
+  if (self.token().is(TKind.SYMBOL) && self.match("if")) { return self.parse_ifstmt(IF); }
+  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) { return self.parse_ifstmt(ELSE); }
+  if (self.token().is(TKind.SYMBOL) && self.match("else")) { return self.parse_ifstmt(ELSEIF); }
+  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) { return self.parse_decl(); }
+
+  self.token().print();
   _unimplemented("unexpected statement in parse_stmt!");
-  //if (self.is_ns_type());
-  //if (self.is_assign());
-  //if (self.is_call());
+
+  return maybe::unexpected(<Ast*>)("Unimplemented parse statement !!");
 }
 
 fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
-  Maybe(<Ast*>) ast, parse_error, expected_block_error;
+  Maybe(<Ast*>) parse_error, expected_block_error;
 
   parse_error = maybe::unexpected(<Ast*>)("failed to parse if statement");
   expected_block_error = maybe::unexpected(<Ast*>)("expected if or elseif statement");
   
   if (!self.match(variant == IF ? "if": variant == ELSE ? "elseif" : "else")) return parse_error;
   if (variant != IF) {
+
     if (!self.nodes.last()!!.is_ifblock()) return expected_block_error;
   }
 
-  ast = self.consume(TKind.SYMBOL, "failed to parse if statement");
-  if (ast.err()) return ast;
+  parse_error = self.consume(TKind.SYMBOL, "failed to parse if statement");
+  if (parse_error.err()) return parse_error;
   
   Maybe(<Ast*>) expr = self.parse_expr();
- 
+  if (expr.err()) return expr;
+
+  Ast* node = ast::make_ifstmt(expr.data, variant);
+
+  parse_error = self.consume(TKind.OPENCURLY, "expected curly bracket after condition in if statement");
+  if (parse_error.err()) return parse_error;
+
+  self.token().print();
   while (!self.token().is(TKind.CLOSECURLY)) {
-    self.inc();
-    //TODO: parse statements here
+    Maybe(<Ast*>) stmt = self.parse_stmt();
+    if (stmt.err()) return stmt;
+    node.if_push_stmt(stmt.data);
+    //TODO: parse statemens here
   }
 
-  ast = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
-  if (ast.err()) return ast;
+  //DEBUG
+  self.token().print();
+  parse_error = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
+  if (parse_error.err()) return parse_error;
+  //DEBUG
 
-  return Maybe(<Ast*>){null, ""};
+  return Maybe(<Ast*>){node, ""};
 }
 
 fn Maybe(<Ast*>) Parser.parse_else(&self) {
@@ -196,7 +222,7 @@ fn void Parser.parse_match_stmt(&self) {
   _unimplemented("match statement");
 }
 
-fn void Parser.parse_decl(&self) {
+fn Maybe(<Ast*>) Parser.parse_decl(&self) {
   Ast *ast;
   String* primitive_type = self.get_primitive_type();
 
@@ -231,9 +257,14 @@ fn void Parser.parse_decl(&self) {
       ast::PRIMITVE_TYPE
     );
     
-  } else if (self.peek().is(TKind.EQ)) {
-    _unimplemented("user defined type after equal");
+  } else {
+    ast = ast::create_decl(
+      name_tok.view,
+      primitive_type.to_slice()
+    );
   }
+  
+  return Maybe(<Ast*>){ast, ""};
 }
 
 fn Maybe(<Ast*>) Parser.parse_expr(&self) {

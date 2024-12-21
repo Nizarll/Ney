@@ -9,7 +9,8 @@ import std::collections::list;
 enum AstKind {
   FNCALLPARAMS, BLOCK, IMPORT,
   VARDECL, FOR, WHILE, FOREACH,
-  RETURN, CONTINUE, BREAK //...
+  IF, ELSEIF, ELSE, RETURN, CONTINUE,
+  BREAK //...
 }
 
 enum ExprKind {
@@ -50,6 +51,11 @@ struct Binexpr {
   BinopKind kind;
 }
 
+struct Ifstmt {
+  Ast* cond;
+  List(<Ast*>) block;
+}
+
 struct Condition {
   Ast* condition;
   Ast* block;
@@ -61,7 +67,7 @@ struct FuncParams {
 
 struct Match {
   Ast* symbol;
-  List(<Condition>) conds;
+  List(<Ast*>) cases;
 }
 
 struct Expression {
@@ -79,6 +85,7 @@ struct Ast {
   Location loc;
   Slice(<char>) slice;
   union {
+    Ifstmt ifstmt;
     Expression expr;
     Literal literal;
     VarDecl var_decl;
@@ -90,10 +97,11 @@ struct Ast {
 fn Ast* create_decl(
   Slice(<char>) varname,
   Slice(<char>) typename,
-  Ast* value,
+  Ast* value = null,
   bool is_primitive = false,
   Ast* base_value = null)
 {
+
   Ast* ast = mem::new(Ast);
   ast.kind = AstKind.VARDECL;
 
@@ -142,4 +150,27 @@ fn Ast* create_fnc_params(List(<Ast*>)* list) {
   ast.fn_params.list = *list;
   //TODO:
   return ast;
+}
+
+fn bool Ast.is_ifblock(&self) @inline {
+  return (self.kind == AstKind.IF || self.kind == AstKind.ELSEIF);
+}
+fn bool Ast.is_elseblock(&self) @inline {
+  return (self.kind == AstKind.ELSE);
+}
+
+fn Ast* make_ifstmt(Ast* cond, int variant) {
+  Ast* ast = mem::new(Ast);
+  if (variant == 0) {
+    ast.kind = AstKind.IF;
+  } else if (variant == 1) {
+    ast.kind = AstKind.ELSEIF;
+  } else if (variant == 2) {
+    ast.kind = AstKind.ELSE;
+  }
+  return ast;
+}
+
+fn void Ast.if_push_stmt(&self, Ast* stmt) @inline {
+  self.ifstmt.block.push(stmt);
 }
