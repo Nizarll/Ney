@@ -60,7 +60,7 @@ fn Type* Slice.get_ref(Slice* self, usz id = 0) @operator(&[]) {
   return (Type*)(self.ptr + id);
 }
 
-fn usz Slice.len(Slice* self) @operator(len) {
+fn usz Slice.length(Slice* self) @operator(len) {
   return self.len;
 }
 
