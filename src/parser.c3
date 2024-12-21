@@ -35,6 +35,9 @@ const int IF = 0x00;
 const int ELSEIF = 0x01;
 const int ELSE = 0x02;
 
+const ZString NULLZSTR = (ZString) 0;
+const MAYBE_EMPTY_AST = Maybe(<Ast*>) {null, (String)NULLZSTR[:0]};
+
 fn Parser init(List(<Token>)* tokens) {
   Parser p;
   p.i = 0;
@@ -141,34 +144,19 @@ fn bool Parser.is_lit(&self, uint offset = 0) {
 }
 
 fn bool Parser.is_stmt(&self) {
-  if (self.token().is(TKind.SYMBOL) && self.match("if")) {
-    //DEBUG
-    io::print("parsing if\n");
-    return true; }
-  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) {
-    //DEBUG
-    io::print("parsing elseif\n");
-    return true; }
-  if (self.token().is(TKind.SYMBOL) && self.match("else")) {
-    //DEBUG
-    io::print("else\n");
-    return true; }
-  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) {
-    io::printf("current cursor is : %d\n", self.i);
-    self.token().print();
-    io::print("parsing decl");
-    return true;
-  }
+  if (self.token().is(TKind.SYMBOL) && self.match("if")) { return true; }
+  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) { return true; }
+  if (self.token().is(TKind.SYMBOL) && self.match("else")) { return true; }
+  if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) { return true; }
   return false;
 }
 
 fn Maybe(<Ast*>) Parser.parse_stmt(&self) {
   if (self.token().is(TKind.SYMBOL) && self.match("if")) { return self.parse_ifstmt(IF); }
-  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) { return self.parse_ifstmt(ELSE); }
-  if (self.token().is(TKind.SYMBOL) && self.match("else")) { return self.parse_ifstmt(ELSEIF); }
+  if (self.token().is(TKind.SYMBOL) && self.match("elseif")) { return self.parse_ifstmt(ELSEIF); }
+  if (self.token().is(TKind.SYMBOL) && self.match("else")) { return self.parse_ifstmt(ELSE); }
   if (self.token().is(TKind.SYMBOL) && self.peek().is(TKind.SYMBOL)) { return self.parse_decl(); }
 
-  self.token().print();
   _unimplemented("unexpected statement in parse_stmt!");
 
   return maybe::unexpected(<Ast*>)("Unimplemented parse statement !!");
@@ -180,24 +168,30 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
   parse_error = maybe::unexpected(<Ast*>)("failed to parse if statement");
   expected_block_error = maybe::unexpected(<Ast*>)("expected if or elseif statement");
   
-  if (!self.match(variant == IF ? "if": variant == ELSE ? "elseif" : "else")) return parse_error;
-  if (variant != IF) {
+  if (!self.match(variant == IF ? "if": variant == ELSEIF ? "elseif" : "else")) return parse_error;
 
-    if (!self.nodes.last()!!.is_ifblock()) return expected_block_error;
+  if (variant != IF) {
+    Ast*! last = self.nodes.last();
+    if (catch excuse = last) {
+      return expected_block_error;
+    }
+    if (!last.is_ifblock()) return expected_block_error;
   }
 
   parse_error = self.consume(TKind.SYMBOL, "failed to parse if statement");
   if (parse_error.err()) return parse_error;
   
-  Maybe(<Ast*>) expr = self.parse_expr();
-  if (expr.err()) return expr;
+  Maybe(<Ast*>) expr;
+  if (variant == IF || variant == ELSEIF) {
+    expr = self.parse_expr(TKind.OPENCURLY);
+    if (expr.err()) return expr;
+  }
 
   Ast* node = ast::make_ifstmt(expr.data, variant);
 
   parse_error = self.consume(TKind.OPENCURLY, "expected curly bracket after condition in if statement");
   if (parse_error.err()) return parse_error;
 
-  self.token().print();
   while (!self.token().is(TKind.CLOSECURLY)) {
     Maybe(<Ast*>) stmt = self.parse_stmt();
     if (stmt.err()) return stmt;
@@ -205,11 +199,8 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
     //TODO: parse statemens here
   }
 
-  //DEBUG
-  self.token().print();
   parse_error = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
   if (parse_error.err()) return parse_error;
-  //DEBUG
 
   return Maybe(<Ast*>){node, ""};
 }
@@ -267,15 +258,15 @@ fn Maybe(<Ast*>) Parser.parse_decl(&self) {
   return Maybe(<Ast*>){ast, ""};
 }
 
-fn Maybe(<Ast*>) Parser.parse_expr(&self) {
+fn Maybe(<Ast*>) Parser.parse_expr(&self, TKind until = TKind.SEMICOL) {
   Maybe(<Ast*>) left = self.parse_term();
   if (left.err()) return left;
 
-  while (self.is_comparison()) {
+  while (self.is_comparison() && !self.token().is(until)) {
     Token op = self.token();
     self.inc();
 
-    Maybe(<Ast*>) right = self.parse_term();
+    Maybe(<Ast*>) right = self.parse_term(until);
     if (right.err()) return right;
 
     left = Maybe(<Ast*>) {
@@ -286,15 +277,15 @@ fn Maybe(<Ast*>) Parser.parse_expr(&self) {
   return left;
 }
 
-fn Maybe(<Ast*>) Parser.parse_term(&self) {
+fn Maybe(<Ast*>) Parser.parse_term(&self, TKind until = TKind.SEMICOL) {
   Maybe(<Ast*>) left = self.parse_factor();
   if (left.err()) return left;
 
-  while (self.token().is(TKind.PLUS) || self.token().is(TKind.MINUS)) {
+  while (self.token().is(TKind.PLUS) || self.token().is(TKind.MINUS) && !self.token().is(until)) {
     Token op = self.token();
     self.inc();
 
-    Maybe(<Ast*>) right = self.parse_factor();
+    Maybe(<Ast*>) right = self.parse_factor(until);
     if (right.err()) return right;
 
     left = {
@@ -305,13 +296,15 @@ fn Maybe(<Ast*>) Parser.parse_term(&self) {
   return left;
 }
 
-fn Maybe(<Ast*>) Parser.parse_factor(&self) {
+fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
   Maybe(<Ast*>) left;
-//TODO: refactor this ugly ass shit
+
+  // Parse primary expressions
   if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
     left = Maybe(<Ast*>) { ast::create_number(num), "" };
+
   } else if (self.token().is(TKind.SYMBOL)) {
     Token id = self.token();
     self.inc();
@@ -322,30 +315,37 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self) {
       Maybe(<Ast*>) args = self.parse_arguments();
       if (args.err()) return args;
 
-      if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
+      if (!self.token().is(TKind.CLOSEPAREN)) {
+        return maybe::unexpected(<Ast*>)("Expected closing parenthesis after function call");
+      }
 
       self.inc();
       left = Maybe(<Ast*>) { ast::create_function_call(id, args), "" };
     } else {
       left = Maybe(<Ast*>) { ast::create_variable(id), "" };
     }
+
   } else if (self.token().is(TKind.OPENPAREN)) {
+    // Handle parenthesized expressions
     self.inc();
-    left = self.parse_expr();
+    left = self.parse_expr(until); // Ensure `parse_expr` respects `until`
     if (left.err()) return left;
 
-    if (!self.token().is(TKind.CLOSEPAREN)) return maybe::unexpected(<Ast*>)("Expected closing parenthesis");
+    if (!self.token().is(TKind.CLOSEPAREN)) {
+      return maybe::unexpected(<Ast*>)("Expected closing parenthesis after expression");
+    }
+
     self.inc();
   } else {
+    //if (self.token().is(until)) return MAYBE_EMPTY_AST;
     return maybe::unexpected(<Ast*>)("Unexpected token in factor");
   }
 
-  // Handle multiplication and division
-  while (self.token().is(TKind.MUL) || self.token().is(TKind.DIV)) {
+  while ((self.token().is(TKind.MUL) || self.token().is(TKind.DIV)) && !self.token().is(until)) {
     Token op = self.token();
     self.inc();
 
-    Maybe(<Ast*>) right = self.parse_factor();  // Recursively parse the right-hand side
+    Maybe(<Ast*>) right = self.parse_factor(until);  // Propagate `until` for consistency
     if (right.err()) return right;
 
     left = Maybe(<Ast*>) {

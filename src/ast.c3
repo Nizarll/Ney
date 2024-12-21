@@ -6,11 +6,14 @@ import std::io;
 import std::core::mem;
 import std::collections::list;
 
-enum AstKind {
-  FNCALLPARAMS, BLOCK, IMPORT,
-  VARDECL, FOR, WHILE, FOREACH,
-  IF, ELSEIF, ELSE, RETURN, CONTINUE,
-  BREAK //...
+enum AstKind : uint (String tostr) {
+  FNCALLPARAMS = "FNCALLPARAMS",
+  BLOCK = "BLOCK", IMPORT = "IMPORT",
+  FOR = "FOR", WHILE = "WHILE",
+  FOREACH = "FOREACH", IF = "IF",
+  VARDECL = "VARDECL", ELSE = "ELSE",
+  ELSEIF = "ELSEIF", RETURN = "RETURN",
+  CONTINUE = "CONTINUE", BREAK = "BREAK" //...
 }
 
 enum ExprKind {
