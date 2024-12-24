@@ -1,6 +1,6 @@
 module bytecode;
 
-import std::libc;
+import libc;
 import std::collections::list;
 import std::io;
 
@@ -36,32 +36,44 @@ struct VmContext {
   Instruction[*] instructions;
 }
 
-macro GetOpCode(uint instruction) {
-  return (num >> 26) & 0x3F;
+macro Opcode get_opcode(uint num) {
+  return (Opcode)((num >> 26) & 0x3F);
 }
 
-def ExecuteInstruction(VmContext* ctx) {
-  uint instruction = ctx.program[ctx.pc];
-  switch (GETOPCODE(instruction)) {
+macro uint op_first(uint num) {
+  return 0; //TODO:
+}
+
+macro uint op_second(uint num) {
+  return 0; //TODO:
+}
+
+macro uint op_third(uint num) {
+  return 0; //TODO:
+}
+
+fn void execute_instructions(VmContext* ctx) {
+  uint instruction = ctx.instructions[ctx.pc];
+  switch (get_opcode(instruction)) {
     case Opcode.LOAD: {
-      ctx.vm.general_regs[instruction.operand1] = ctx.vm.ctable[instruction.operand2].u32;
+      ctx.vm.general_regs[op_first(instruction)] = ctx.vm.ctable[op_second(instruction)].u32;
       break;
     }
     case Opcode.MOV: {
-      ctx.vm.general_regs[instruction.operand2] = ctx.vm.general_regs[instruction.operand1];
+      ctx.vm.general_regs[op_first(instruction)] = ctx.vm.general_regs[op_second(instruction)];
       break;
     }
     case Opcode.ADD: {
       //TODO: add intelligent recognition of register type
-      ctx.vm.general_regs[instruction.operand3] =
-        ctx.vm.general_regs[instruction.operand1] +
-        ctx.vm.general_regs[instruction.operand2];
+      ctx.vm.general_regs[op_third(instruction)] =
+        ctx.vm.general_regs[op_first(instruction)] +
+        ctx.vm.general_regs[op_second(instruction)];
       break;
     }
     case Opcode.SUB: {
-      ctx.vm.general_regs[instruction.operand3] =
-        ctx.vm.general_regs[instruction.operand1] -
-        ctx.vm.general_regs[instruction.operand2];
+      ctx.vm.general_regs[op_third(instruction)] =
+        ctx.vm.general_regs[op_first(instruction)] -
+        ctx.vm.general_regs[op_second(instruction)];
       break;
     }
     case Opcode.PUSH: {

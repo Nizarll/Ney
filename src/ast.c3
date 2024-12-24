@@ -2,6 +2,7 @@ module ast;
 import utils;
 import lexer;
 import types;
+import libc;
 import std::io;
 import std::core::mem;
 import std::collections::list;
@@ -13,7 +14,7 @@ enum AstKind : uint (String tostr) {
   FOREACH = "FOREACH", IF = "IF",
   VARDECL = "VARDECL", ELSE = "ELSE",
   ELSEIF = "ELSEIF", RETURN = "RETURN",
-  CONTINUE = "CONTINUE", BREAK = "BREAK" //...
+  CONTINUE = "CONTINUE", BREAK = "BREAK",
 }
 
 enum ExprKind {
@@ -56,7 +57,11 @@ struct Binexpr {
 
 struct Ifstmt {
   Ast* cond;
-  List(<Ast*>) block;
+  Ast* block;
+}
+
+struct Block {
+  List(<Ast*>) stmts;
 }
 
 struct Condition {
@@ -88,6 +93,7 @@ struct Ast {
   Location loc;
   Slice(<char>) slice;
   union {
+    Block block;
     Ifstmt ifstmt;
     Expression expr;
     Literal literal;
@@ -97,7 +103,7 @@ struct Ast {
   }
 }
 
-fn Ast* create_decl(
+fn Ast* make_decl(
   Slice(<char>) varname,
   Slice(<char>) typename,
   Ast* value = null,
@@ -123,43 +129,36 @@ fn Ast* create_decl(
   return ast;
 }
 
-fn Ast* create_function_call(...) {
+fn Ast* make_function_call(...) {
   //TODO:
   Ast* ast = mem::new(Ast);
   return ast;
 }
 
-fn Ast* create_binexpr(Ast* lhs, Ast* rhs, Token op) {
+fn Ast* make_binexpr(Ast* lhs, Ast* rhs, Token op) {
   //TODO:
   Ast* ast = mem::new(Ast);
   return ast;
 }
 
-fn Ast* create_number(Token token) {
+fn Ast* make_number(Token token) {
   //TODO:
   Ast* ast = mem::new(Ast);
   return ast;
 }
 
-fn Ast* create_variable(Token token) {
+fn Ast* make_variable(Token token) {
   //TODO:
   Ast* ast = mem::new(Ast);
   return ast;
 }
 
-fn Ast* create_fnc_params(List(<Ast*>)* list) {
+fn Ast* make_fnc_params(List(<Ast*>)* list) {
   Ast* ast = mem::new(Ast);
   ast.kind = AstKind.FNCALLPARAMS;
   ast.fn_params.list = *list;
   //TODO:
   return ast;
-}
-
-fn bool Ast.is_ifblock(&self) @inline {
-  return (self.kind == AstKind.IF || self.kind == AstKind.ELSEIF);
-}
-fn bool Ast.is_elseblock(&self) @inline {
-  return (self.kind == AstKind.ELSE);
 }
 
 fn Ast* make_ifstmt(Ast* cond, int variant) {
@@ -174,6 +173,32 @@ fn Ast* make_ifstmt(Ast* cond, int variant) {
   return ast;
 }
 
-fn void Ast.if_push_stmt(&self, Ast* stmt) @inline {
-  self.ifstmt.block.push(stmt);
+fn Ast* make_block() {
+  Ast* ast = mem::new(Ast);
+  ast.kind = AstKind.BLOCK;
+  return ast;
+}
+
+fn bool Ast.is_ifblock(&self) @inline {
+  return (self.kind == AstKind.IF || self.kind == AstKind.ELSEIF);
+}
+
+fn bool Ast.is_elseblock(&self) @inline {
+  return (self.kind == AstKind.ELSE);
+}
+
+fn void Ast.set_block(&self, Ast* ast) @inline {
+  if (self.is_elseblock() || self.is_ifblock()) {
+    self.ifstmt.block = ast;
+  } else {
+    io::printf("unimplemented ast.setblock for : %s\n", self.kind.tostr); //TODO: unimplemented
+  }
+}
+
+fn void Ast.push_stmt(&self, Ast* ast) @inline {
+  if (ast == null) {
+    io::print("attempted to push a null statement to block\n");
+    libc::exit(1);
+  }
+  self.block.stmts.push(ast);
 }

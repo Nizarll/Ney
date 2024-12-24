@@ -14,7 +14,15 @@ struct Parser {
   usz i;
   List(<Token>)* tokens;
   List(<Ast*>) nodes;
-  List(<Ns>) namespaces;
+  List(<Ns>) nspcs;
+  List(<Func>) fns;
+}
+
+struct Func {
+  Ast* args;
+  Ast* body;
+  Type ret_type;
+  Slice(<char>) name;
 }
 
 String[*] keywords = {
@@ -35,9 +43,6 @@ const int IF = 0x00;
 const int ELSEIF = 0x01;
 const int ELSE = 0x02;
 
-const ZString NULLZSTR = (ZString) 0;
-const MAYBE_EMPTY_AST = Maybe(<Ast*>) {null, (String)NULLZSTR[:0]};
-
 fn Parser init(List(<Token>)* tokens) {
   Parser p;
   p.i = 0;
@@ -54,6 +59,7 @@ fn Token Parser.peek(&self, int offset = 1) {
   if (self.i + offset >= self.tokens.len()) return Token{TKind.EOF, {}, {}};
   return self.tokens.get(self.i + offset);
 }
+
 fn bool Parser.is_token(&self, TKind kind) @inline {
   return (self.tokens.len() != 0 && self.i < self.tokens.len() && self.token().kind == kind);
 }
@@ -152,6 +158,7 @@ fn bool Parser.is_stmt(&self) {
 }
 
 fn Maybe(<Ast*>) Parser.parse_stmt(&self) {
+  
   if (self.token().is(TKind.SYMBOL) && self.match("if")) { return self.parse_ifstmt(IF); }
   if (self.token().is(TKind.SYMBOL) && self.match("elseif")) { return self.parse_ifstmt(ELSEIF); }
   if (self.token().is(TKind.SYMBOL) && self.match("else")) { return self.parse_ifstmt(ELSE); }
@@ -188,20 +195,11 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
   }
 
   Ast* node = ast::make_ifstmt(expr.data, variant);
-
-  parse_error = self.consume(TKind.OPENCURLY, "expected curly bracket after condition in if statement");
-  if (parse_error.err()) return parse_error;
-
-  while (!self.token().is(TKind.CLOSECURLY)) {
-    Maybe(<Ast*>) stmt = self.parse_stmt();
-    if (stmt.err()) return stmt;
-    node.if_push_stmt(stmt.data);
-    //TODO: parse statemens here
-  }
-
-  parse_error = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
-  if (parse_error.err()) return parse_error;
-
+  Maybe(<Ast*>) block = self.parse_block();
+  
+  if (block.err()) return block;
+  node.set_block(block.data);
+  
   return Maybe(<Ast*>){node, ""};
 }
 
@@ -211,6 +209,64 @@ fn Maybe(<Ast*>) Parser.parse_else(&self) {
 
 fn void Parser.parse_match_stmt(&self) {
   _unimplemented("match statement");
+}
+
+fn Maybe(<Ast*>) Parser.parse_block(&self) {
+  Maybe(<Ast*>) parse_error;
+  parse_error = self.consume(TKind.OPENCURLY, "expected curly bracket after condition in if statement");
+  if (parse_error.err()) return parse_error;
+
+  parse_error = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
+  if (parse_error.err()) return parse_error;
+
+  Ast* block = ast::make_block();
+  while (!self.token().is(TKind.CLOSECURLY)) {
+    Maybe(<Ast*>) stmt = self.parse_stmt();
+    if (stmt.err()) return stmt;
+    block.push_stmt(stmt.data);
+  }
+
+  return {block, ""};
+}
+
+fn void Parser.parse_fn(&self) {
+  Maybe(<Ast*>) consume;
+  
+  Token type = self.token();
+  consume = self.consume(TKind.SYMBOL, "Expected typename in function declaration");
+  if (consume.err()) {
+    io::print(err);
+  }
+
+  Token name = self.token();
+  consume = self.consume(TKind.SYMBOL, "Expected function name after typename in function declaration");
+  if (consume.err()) {
+    io::print(err);
+  }
+
+  consume = self.consume(TKind.OPENPAREN, "Expected an opening parenthesis after function name"); // JUST TO BE SURE
+  if (consume.err()) {
+    io::print(err);
+  }
+
+  Maybe(<Ast*>) args = self.parse_fn_args();
+  Maybe(<Ast*>) block = self.parse_block();
+  if (block.err()) {
+    io::print("error in bug or whatever in function you gotta fix this later\n"); // TODO: //DEBUG
+    libc::exit(1);
+  }
+  Func fnc = Func {
+    //.type  TODO: add type
+    .name = name.view,
+    .args = args.data,
+    .block = block.data
+  };
+  
+  //DEBUG
+  libc::printf("parsed function %.*s\n", name.view.len, name.view.ptr);
+  //DEBUG
+  
+  self.fns.push(fnc);
 }
 
 fn Maybe(<Ast*>) Parser.parse_decl(&self) {
@@ -241,7 +297,7 @@ fn Maybe(<Ast*>) Parser.parse_decl(&self) {
       _unimplemented("handle value of expr in equal");
     }
 
-    ast = ast::create_decl(
+    ast = ast::make_decl(
       name_tok.view,
       primitive_type.to_slice(),
       value.data,
@@ -249,11 +305,14 @@ fn Maybe(<Ast*>) Parser.parse_decl(&self) {
     );
     
   } else {
-    ast = ast::create_decl(
+    ast = ast::make_decl(
       name_tok.view,
       primitive_type.to_slice()
     );
   }
+  
+  Maybe(<Ast*>) consume = self.consume(TKind.SEMICOL, "expected a semicolon after declaration ");
+  if (consume.err()) return consume;
   
   return Maybe(<Ast*>){ast, ""};
 }
@@ -270,7 +329,7 @@ fn Maybe(<Ast*>) Parser.parse_expr(&self, TKind until = TKind.SEMICOL) {
     if (right.err()) return right;
 
     left = Maybe(<Ast*>) {
-      ast::create_binexpr(left.data, right.data, op),
+      ast::make_binexpr(left.data, right.data, op),
       ""
     };
   }
@@ -289,7 +348,7 @@ fn Maybe(<Ast*>) Parser.parse_term(&self, TKind until = TKind.SEMICOL) {
     if (right.err()) return right;
 
     left = {
-      ast::create_binexpr(left.data, right.data, op),
+      ast::make_binexpr(left.data, right.data, op),
       ""
     };
   }
@@ -299,11 +358,10 @@ fn Maybe(<Ast*>) Parser.parse_term(&self, TKind until = TKind.SEMICOL) {
 fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
   Maybe(<Ast*>) left;
 
-  // Parse primary expressions
   if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
-    left = Maybe(<Ast*>) { ast::create_number(num), "" };
+    left = Maybe(<Ast*>) { ast::make_number(num), "" };
 
   } else if (self.token().is(TKind.SYMBOL)) {
     Token id = self.token();
@@ -312,7 +370,7 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
     if (self.token().is(TKind.OPENPAREN)) {
       // Handle function call
       self.inc();
-      Maybe(<Ast*>) args = self.parse_arguments();
+      Maybe(<Ast*>) args = self.parse_call_args();
       if (args.err()) return args;
 
       if (!self.token().is(TKind.CLOSEPAREN)) {
@@ -320,9 +378,9 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
       }
 
       self.inc();
-      left = Maybe(<Ast*>) { ast::create_function_call(id, args), "" };
+      left = Maybe(<Ast*>) { ast::make_function_call(id, args), "" };
     } else {
-      left = Maybe(<Ast*>) { ast::create_variable(id), "" };
+      left = Maybe(<Ast*>) { ast::make_variable(id), "" };
     }
 
   } else if (self.token().is(TKind.OPENPAREN)) {
@@ -337,7 +395,6 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
 
     self.inc();
   } else {
-    //if (self.token().is(until)) return MAYBE_EMPTY_AST;
     return maybe::unexpected(<Ast*>)("Unexpected token in factor");
   }
 
@@ -349,7 +406,7 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
     if (right.err()) return right;
 
     left = Maybe(<Ast*>) {
-      ast::create_binexpr(left.data, right.data, op),
+      ast::make_binexpr(left.data, right.data, op),
       ""
     };
   }
@@ -357,7 +414,7 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
   return left;
 }
 
-fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
+fn Maybe(<Ast*>) Parser.parse_call_args(&self) {
   //TODO:parse arguments depending on function to give better errors
   Ast* args_ast;
   List(<Ast*>) params;
@@ -376,7 +433,7 @@ fn Maybe(<Ast*>) Parser.parse_arguments(&self) {
     }
   }
 
-  args_ast = ast::create_fnc_params(&params);
+  args_ast = ast::make_fnc_params(&params);
   return Maybe(<Ast*>){ args_ast, "" };
 }
 
