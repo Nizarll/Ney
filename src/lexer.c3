@@ -11,7 +11,7 @@ enum TKind : uint (String tostr) {
   DOT = "DOT", NOT = "NOT", ARROW = "ARROW", LESSEQ = "LESSEQ",
   SYMBOL = "SYMBOL", NUMLIT = "NUMLIT", SEMICOL = "SEMICOL",
   GREATER = "GREATER", OPENBRACK = "OPENBRACK", MUL = "MUL",
-  COLON = "COLON", LESS = "LESS", CLOSECURLY = "CLOSECURLY",
+  COMA = "COMA", LESS = "LESS", CLOSECURLY = "CLOSECURLY",
   CHAR = "CHAR", STR = "STR", SHIFTLEFT = "SHIFTLEFT",
   SHIFTRIGHT = "SHIFHTRIGHT", GREATEREQ = "GREATEREQ",
   OPENPAREN = "OPENPAREN", CLOSEPAREN = "CLOSEPAREN",
@@ -167,7 +167,7 @@ fn void Lexer.lex(&self) {
     case '*': self.push_type(TKind.MUL);
     case '-': self.push_type(TKind.MINUS);
     case '\0': self.push_type(TKind.EOF);
-    case ',': self.push_type(TKind.COLON);
+    case ',': self.push_type(TKind.COMA);
     case ';': self.push_type(TKind.SEMICOL);
     case '{': self.push_type(TKind.OPENCURLY);
     case '}': self.push_type(TKind.CLOSECURLY);

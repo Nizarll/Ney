@@ -153,7 +153,13 @@ fn Ast* make_variable(Token token) {
   return ast;
 }
 
-fn Ast* make_fnc_params(List(<Ast*>)* list) {
+fn Ast* make_fn_args() {
+  //TODO:
+  Ast* ast = mem::new(Ast);
+  return ast;
+}
+
+fn Ast* make_call_args(List(<Ast*>)* list) {
   Ast* ast = mem::new(Ast);
   ast.kind = AstKind.FNCALLPARAMS;
   ast.fn_params.list = *list;

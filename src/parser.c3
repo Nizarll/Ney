@@ -83,14 +83,22 @@ fn bool Parser.match(&self, String s) @inline {
 
 fn void Parser.parse(&self) {
   while (!self.is_eof()) {
-    if (self.is_stmt()) {
+    
+    if (self.is_proto()) {
+      io::print("it is a proto");
+      self.parse_fn();
+    } else if (self.is_stmt()) {
+      
       Maybe(<Ast*>) ast = self.parse_stmt();
       if (ast.err()) {
         io::printf("error: %s \n", ast.message);
         return;
       }
+
+      io::printf("is null %d \n", (int) (ast.data == null));
       self.nodes.push(ast.data);
     }
+
   }
 }
 
@@ -133,13 +141,22 @@ fn bool Parser.is_comparison(&self) @inline {
   self.token().is(TKind.LESS)   || self.token().is(TKind.GREATER));
 }
 
+fn bool Parser.is_proto(&self) {
+  //TODO:
+  TKind[*] kinds = {TKind.SYMBOL, TKind.SYMBOL, TKind.OPENPAREN};
+  for (int i = 0; i < kinds.len; i++) {
+    if (!self.peek(i).is(kinds[i])) return false;
+  }
+  return true;
+}
+
 fn bool Parser.is_call(&self) {
   //TODO:
   TKind[*] kinds = {TKind.SYMBOL, TKind.OPENPAREN};
-  foreach (kind : kinds) {
-    if (!self.token().is(kind)) return false;
+  for (int i = 0; i < kinds.len; i++) {
+    if (!self.peek(i).is(kinds[i])) return false;
   }
-  return false;
+  return true;
 }
 
 fn bool Parser.is_lit(&self, uint offset = 0) {
@@ -182,6 +199,7 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
     if (catch excuse = last) {
       return expected_block_error;
     }
+    io::printf("last is : %s\n", last.kind.tostr);
     if (!last.is_ifblock()) return expected_block_error;
   }
 
@@ -189,7 +207,7 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
   if (parse_error.err()) return parse_error;
   
   Maybe(<Ast*>) expr;
-  if (variant == IF || variant == ELSEIF) {
+  if (variant != ELSE) {
     expr = self.parse_expr(TKind.OPENCURLY);
     if (expr.err()) return expr;
   }
@@ -197,7 +215,10 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
   Ast* node = ast::make_ifstmt(expr.data, variant);
   Maybe(<Ast*>) block = self.parse_block();
   
-  if (block.err()) return block;
+  if (block.err()) {
+    //DEBUG
+    return block; 
+  }
   node.set_block(block.data);
   
   return Maybe(<Ast*>){node, ""};
@@ -216,9 +237,6 @@ fn Maybe(<Ast*>) Parser.parse_block(&self) {
   parse_error = self.consume(TKind.OPENCURLY, "expected curly bracket after condition in if statement");
   if (parse_error.err()) return parse_error;
 
-  parse_error = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
-  if (parse_error.err()) return parse_error;
-
   Ast* block = ast::make_block();
   while (!self.token().is(TKind.CLOSECURLY)) {
     Maybe(<Ast*>) stmt = self.parse_stmt();
@@ -226,40 +244,49 @@ fn Maybe(<Ast*>) Parser.parse_block(&self) {
     block.push_stmt(stmt.data);
   }
 
+  parse_error = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of if statement");
+  if (parse_error.err()) return parse_error;
+
+
   return {block, ""};
 }
 
 fn void Parser.parse_fn(&self) {
   Maybe(<Ast*>) consume;
-  
+
   Token type = self.token();
   consume = self.consume(TKind.SYMBOL, "Expected typename in function declaration");
   if (consume.err()) {
-    io::print(err);
+    io::print(consume.message);
+    io::print("func todo remove\n");
   }
 
   Token name = self.token();
   consume = self.consume(TKind.SYMBOL, "Expected function name after typename in function declaration");
   if (consume.err()) {
-    io::print(err);
+    io::print(consume.message);
+    io::print("func todo remove\n");
   }
 
   consume = self.consume(TKind.OPENPAREN, "Expected an opening parenthesis after function name"); // JUST TO BE SURE
   if (consume.err()) {
-    io::print(err);
+    io::print(consume.message);
+    io::print("func todo remove\n");
   }
 
   Maybe(<Ast*>) args = self.parse_fn_args();
   Maybe(<Ast*>) block = self.parse_block();
+
   if (block.err()) {
     io::print("error in bug or whatever in function you gotta fix this later\n"); // TODO: //DEBUG
     libc::exit(1);
   }
+
   Func fnc = Func {
     //.type  TODO: add type
     .name = name.view,
     .args = args.data,
-    .block = block.data
+    .body = block.data
   };
   
   //DEBUG
@@ -426,15 +453,36 @@ fn Maybe(<Ast*>) Parser.parse_call_args(&self) {
 
     if (self.token().is(TKind.CLOSEPAREN)) {
       continue;
-    } else if (self.token().is(TKind.COLON)) {
+    } else if (self.token().is(TKind.COMA)) {
       self.inc();
     } else {
       return maybe::unexpected(<Ast*>)("Unexpected token here");
     }
   }
 
-  args_ast = ast::make_fnc_params(&params);
+  args_ast = ast::make_call_args(&params);
   return Maybe(<Ast*>){ args_ast, "" };
+}
+
+fn Maybe(<Ast*>) Parser.parse_fn_args(&self) {
+  Maybe(<Ast*>) consume;
+
+  Ast* ast = ast::make_fn_args();
+  
+  while(!self.token().is(TKind.CLOSEPAREN)) {
+    Token type = self.token();
+    //TODO: add typechecking so that if its a correct type within the namespace correct error to expected name after type 
+    if ((consume = self.consume(TKind.SYMBOL, "Expected type in function parameter")).err()) return consume;
+    Token name = self.token();
+    if ((consume = self.consume(TKind.SYMBOL, "Expected name after type in function parameter")).err()) return consume;
+
+    if (!self.token().is(TKind.COMA)) {
+      if ((consume = self.consume(TKind.COMA, "Expected name after type in function parameter")).err()) return consume;
+    }
+    //TODO: ast.push_fn_argument(type, name);
+  }
+
+  return {ast, ""};
 }
 
 macro _unimplemented(String s = "") {
