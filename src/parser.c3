@@ -85,10 +85,8 @@ fn void Parser.parse(&self) {
   while (!self.is_eof()) {
     
     if (self.is_proto()) {
-      io::print("it is a proto");
       self.parse_fn();
     } else if (self.is_stmt()) {
-      
       Maybe(<Ast*>) ast = self.parse_stmt();
       if (ast.err()) {
         io::printf("error: %s \n", ast.message);
@@ -274,7 +272,15 @@ fn void Parser.parse_fn(&self) {
     io::print("func todo remove\n");
   }
 
+  io::print("parsed first part\n");
+  self.token().print();
+  self.peek().print();
+  io::print("\n");
+
   Maybe(<Ast*>) args = self.parse_fn_args();
+  io::print("finished parsing args ! \n");
+
+  self.token().print();
   Maybe(<Ast*>) block = self.parse_block();
 
   if (block.err()) {
@@ -471,18 +477,52 @@ fn Maybe(<Ast*>) Parser.parse_fn_args(&self) {
   
   while(!self.token().is(TKind.CLOSEPAREN)) {
     Token type = self.token();
-    //TODO: add typechecking so that if its a correct type within the namespace correct error to expected name after type 
-    if ((consume = self.consume(TKind.SYMBOL, "Expected type in function parameter")).err()) return consume;
-    Token name = self.token();
-    if ((consume = self.consume(TKind.SYMBOL, "Expected name after type in function parameter")).err()) return consume;
+    // TODO: add typechecking so that if it a correct type within the namespace correct error to expected name after type 
+    consume = self.consume(TKind.SYMBOL, "Expected type in function parameter");
+    if (consume.err()) return consume;
 
-    if (!self.token().is(TKind.COMA)) {
-      if ((consume = self.consume(TKind.COMA, "Expected name after type in function parameter")).err()) return consume;
+    Token name = self.token();
+    consume = self.consume(TKind.SYMBOL, "Expected name after type in function parameter");
+    if (consume.err()) return consume;
+
+    if (self.token().is(TKind.COMA)) {
+      consume = self.consume(TKind.COMA, "Expected name after type in function parameter");
+      if (consume.err()) return consume;
     }
     //TODO: ast.push_fn_argument(type, name);
   }
+  consume = self.consume(TKind.CLOSEPAREN, "Expected closing parenthesis after function arguments");
+  if (consume.err()) return consume;
 
   return {ast, ""};
+}
+
+fn Maybe(<Ast*>) Parser.parse_match(&self) {
+  Maybe(<Ast*>) consume;
+  consume = self.consume(TKind.SYMBOL, "Expected a match keyword in match statement"); // ?? just for safety.
+  
+  Token name = self.token();
+  consume = self.consume(TKind.SYMBOL, "Expected variable name in match statement"); // ?? just for safety.
+
+  consume = self.consume(TKind.OPENCURLY, "Expected a curly bracket after variable name in match statement");
+
+  while (!self.token().is(TKind.CLOSECURLY)) {
+    // parse cases
+    Maybe(<Ast*>) expr = self.parse_expr();
+    if (expr.err()) return expr;
+    
+    char[1024] buffer;
+    io::bprintf(buffer, "expected an arrow ( %s => result ) after expression in match statement !")
+    
+    consume = self.consume(TKind.ARROW, (String) buffer);
+    if (self.token.is(TKind.OPENCURLY)) {
+      Maybe(<Ast*>) block = self.parse_block();
+    } else {
+      io::print("parsing one liner");
+    }
+
+  }
+  return {};
 }
 
 macro _unimplemented(String s = "") {
