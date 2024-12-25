@@ -389,6 +389,26 @@ fn Maybe(<Ast*>) Parser.parse_term(&self, TKind until = TKind.SEMICOL) {
 }
 
 fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
+  Maybe(<Ast*>) left = self.parse_primary();
+  if (left.err()) return left;
+
+  while ((self.token().is(TKind.MUL) || self.token().is(TKind.DIV)) && !self.token().is(until)) {
+    Token op = self.token();
+    self.inc();
+
+    Maybe(<Ast*>) right = self.parse_factor(until);
+    if (right.err()) return right;
+
+    left = Maybe(<Ast*>) {
+      ast::make_binexpr(left.data, right.data, op),
+      ""
+    };
+  }
+
+  return left;
+}
+
+fn Maybe(<Ast*>) Parser.parse_primary(&self) { //TODO: refactor this shit its horrible
   Maybe(<Ast*>) left;
 
   if (self.token().is(TKind.NUMLIT)) {
@@ -417,9 +437,8 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
     }
 
   } else if (self.token().is(TKind.OPENPAREN)) {
-    // Handle parenthesized expressions
     self.inc();
-    left = self.parse_expr(until); // Ensure `parse_expr` respects `until`
+    left = self.parse_expr(TKind.CLOSEPAREN);
     if (left.err()) return left;
 
     if (!self.token().is(TKind.CLOSEPAREN)) {
@@ -428,20 +447,7 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
 
     self.inc();
   } else {
-    return maybe::unexpected(<Ast*>)("Unexpected token in factor");
-  }
-
-  while ((self.token().is(TKind.MUL) || self.token().is(TKind.DIV)) && !self.token().is(until)) {
-    Token op = self.token();
-    self.inc();
-
-    Maybe(<Ast*>) right = self.parse_factor(until);  // Propagate `until` for consistency
-    if (right.err()) return right;
-
-    left = Maybe(<Ast*>) {
-      ast::make_binexpr(left.data, right.data, op),
-      ""
-    };
+    return maybe::unexpected(<Ast*>)("Unexpected token in primary expression");
   }
 
   return left;
@@ -513,8 +519,8 @@ fn Maybe(<Ast*>) Parser.parse_match(&self) {
     
     char[1024] buffer;
     io::bprintf(buffer, "expected an arrow ( %s => result ) after expression in match statement !")
-    
     consume = self.consume(TKind.ARROW, (String) buffer);
+    
     if (self.token.is(TKind.OPENCURLY)) {
       Maybe(<Ast*>) block = self.parse_block();
     } else {
