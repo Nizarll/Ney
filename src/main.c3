@@ -43,12 +43,20 @@ fn int main(String[] args)
     io::print("[error]: file does not exist\n");
     libc::exit(libc::EXIT_FAILURE);
   }
-
   Lexer lexer = lexer::init((buffer!!).to_slice());
   lexer.lex();
+  //@print_tokens(lexer);
   @pool() {
     Parser parser = parser::init(&lexer.tokens);
     parser.parse();
   };
   return 0;
+}
+
+macro void @print_tokens(&lexer) {
+  io::print("lexem dump : \n\n");
+  foreach(token : lexer.tokens) {
+    token.print();
+  }
+  io::print("\n");
 }

@@ -92,8 +92,6 @@ fn void Parser.parse(&self) {
         io::printf("error: %s \n", ast.message);
         return;
       }
-
-      io::printf("is null %d \n", (int) (ast.data == null));
       self.nodes.push(ast.data);
     }
 
@@ -197,7 +195,6 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
     if (catch excuse = last) {
       return expected_block_error;
     }
-    io::printf("last is : %s\n", last.kind.tostr);
     if (!last.is_ifblock()) return expected_block_error;
   }
 
@@ -224,10 +221,6 @@ fn Maybe(<Ast*>) Parser.parse_ifstmt(&self, int variant) {
 
 fn Maybe(<Ast*>) Parser.parse_else(&self) {
   return Maybe(<Ast*>){null, ""};
-}
-
-fn void Parser.parse_match_stmt(&self) {
-  _unimplemented("match statement");
 }
 
 fn Maybe(<Ast*>) Parser.parse_block(&self) {
@@ -273,14 +266,11 @@ fn void Parser.parse_fn(&self) {
   }
 
   io::print("parsed first part\n");
-  self.token().print();
-  self.peek().print();
   io::print("\n");
 
   Maybe(<Ast*>) args = self.parse_fn_args();
   io::print("finished parsing args ! \n");
 
-  self.token().print();
   Maybe(<Ast*>) block = self.parse_block();
 
   if (block.err()) {
@@ -317,7 +307,9 @@ fn Maybe(<Ast*>) Parser.parse_decl(&self) {
   }
 
   self.inc();
+
   if (self.token().is(TKind.EQ)) {
+
     
     self.inc(); // GO BEYOND EQUAL
 
@@ -325,8 +317,6 @@ fn Maybe(<Ast*>) Parser.parse_decl(&self) {
 
     //TODO: remove this
     if (value.err()) {
-      io::print(value.message);
-      io::print("\n");
       _unimplemented("handle value of expr in equal");
     }
 
@@ -411,12 +401,16 @@ fn Maybe(<Ast*>) Parser.parse_factor(&self, TKind until = TKind.SEMICOL) {
 fn Maybe(<Ast*>) Parser.parse_primary(&self) { //TODO: refactor this shit its horrible
   Maybe(<Ast*>) left;
 
+  if (self.match("match")) {
+    return self.parse_match();
+  }
+
   if (self.token().is(TKind.NUMLIT)) {
     Token num = self.token();
     self.inc();
-    left = Maybe(<Ast*>) { ast::make_number(num), "" };
-
-  } else if (self.token().is(TKind.SYMBOL)) {
+    return Maybe(<Ast*>) { ast::make_number(num), "" };
+  }
+  if (self.token().is(TKind.SYMBOL)) {
     Token id = self.token();
     self.inc();
 
@@ -505,30 +499,46 @@ fn Maybe(<Ast*>) Parser.parse_fn_args(&self) {
 
 fn Maybe(<Ast*>) Parser.parse_match(&self) {
   Maybe(<Ast*>) consume;
+  self.token().print();
+  io::print("\n\n");
   consume = self.consume(TKind.SYMBOL, "Expected a match keyword in match statement"); // ?? just for safety.
   
   Token name = self.token();
   consume = self.consume(TKind.SYMBOL, "Expected variable name in match statement"); // ?? just for safety.
-
   consume = self.consume(TKind.OPENCURLY, "Expected a curly bracket after variable name in match statement");
+
+  Ast* match = ast::make_match();
 
   while (!self.token().is(TKind.CLOSECURLY)) {
     // parse cases
-    Maybe(<Ast*>) expr = self.parse_expr();
+    Maybe(<Ast*>) expr = self.parse_expr(TKind.ARROW);
     if (expr.err()) return expr;
     
     char[1024] buffer;
-    io::bprintf(buffer, "expected an arrow ( %s => result ) after expression in match statement !")
-    consume = self.consume(TKind.ARROW, (String) buffer);
-    
-    if (self.token.is(TKind.OPENCURLY)) {
-      Maybe(<Ast*>) block = self.parse_block();
-    } else {
-      io::print("parsing one liner");
-    }
+    char[] sliced = buffer[..1023];
 
+    io::bprintf(sliced, "expected an arrow ( %s => result ) after expression in match statement !");
+    consume = self.consume(TKind.ARROW, (String) sliced);
+    if (self.token().is(TKind.OPENCURLY)) {
+      Maybe(<Ast*>) block = self.parse_block();
+      //match.add_branch(ast::BLOCK, block.data); TODO:
+    } else {
+      Maybe(<Ast*>) result = self.parse_expr(TKind.COMA);
+      if (result.err()) return result;
+      consume = self.consume(TKind.COMA, "");
+      if (consume.err() && !self.peek().is(TKind.CLOSECURLY)) {
+        return maybe::unexpected(<Ast*>)("expected closing curly after last branch of match statement !");
+      } else if(consume.err()) {
+        return maybe::unexpected(<Ast*>)("expected comma after branch of match statement !");
+      }
+      //ast.add_branch(ast::EXPR, result.data); TODO:
+    }
   }
-  return {};
+
+  consume = self.consume(TKind.CLOSECURLY, "expected closing curly bracket at the end of match statement !");
+  if (consume.err()) return consume;
+
+  return {match, ""};
 }
 
 macro _unimplemented(String s = "") {

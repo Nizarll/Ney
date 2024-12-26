@@ -1,6 +1,10 @@
-uint fib(uint n)
-  if (n <= 1) return 1 end
-  return fib(n) + fib(n-1)
-end
+uint b = 0;
 
-uint myfib = fib(5)
+uint i = match b {
+  0 => 3,
+  1 => 5,
+};
+
+int add(int a, int b) {
+  int a = a + b;
+}

@@ -11,9 +11,8 @@ u64 getu64()
   return 5
 end
 
-fn main()
-  print(getu64())
-end
+let i = getu64() -- type deduction
+u64 b = i
 ```
 
 WIP: 

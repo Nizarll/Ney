@@ -15,6 +15,7 @@ enum AstKind : uint (String tostr) {
   VARDECL = "VARDECL", ELSE = "ELSE",
   ELSEIF = "ELSEIF", RETURN = "RETURN",
   CONTINUE = "CONTINUE", BREAK = "BREAK",
+  MATCH = "MATCH",
 }
 
 enum ExprKind {
@@ -29,6 +30,8 @@ enum BinopKind {
 }
 
 const bool PRIMITVE_TYPE = true;
+const int EXPR  = 0x00;
+const int BLOCK = 0x01;
 //Node Kind
 
 struct TypeDecl {
@@ -182,6 +185,12 @@ fn Ast* make_ifstmt(Ast* cond, int variant) {
 fn Ast* make_block() {
   Ast* ast = mem::new(Ast);
   ast.kind = AstKind.BLOCK;
+  return ast;
+}
+
+fn Ast* make_match() {
+  Ast* ast = mem::new(Ast);
+  ast.kind = AstKind.MATCH;
   return ast;
 }
 
