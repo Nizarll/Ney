@@ -91,6 +91,11 @@ struct Expression {
   }
 }
 
+struct FuncCall {
+  Token id;
+  List(<Ast*>) args;
+}
+
 struct Ast {
   AstKind kind;
   Location loc;
@@ -102,6 +107,7 @@ struct Ast {
     Literal literal;
     VarDecl var_decl;
     TypeDecl type_decl;
+    FuncCall call;
     FuncParams fn_params;
   }
 }
@@ -132,7 +138,7 @@ fn Ast* make_decl(
   return ast;
 }
 
-fn Ast* make_function_call(...) {
+fn Ast* make_function_call(Token id, Ast* args) {
   //TODO:
   Ast* ast = mem::new(Ast);
   return ast;
