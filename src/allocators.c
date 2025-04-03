@@ -1,8 +1,9 @@
 #include "allocators.h"
+#include "log.h"
 
 void* arena_alloc(usz size, void* ctx)
 {
-  arena* arena = (arena*) ctx;
+  arena* arena = ctx;
 #ifdef debug
   if (arena == nullptr)
     ney_err("attempted to allocate from nullptr arena");
@@ -12,7 +13,7 @@ void* arena_alloc(usz size, void* ctx)
     return nullptr;
   }
   
-  char* ptr = arena->occupied;
+  u8* ptr = arena->data + arena->occupied;
   arena->occupied += size;
   return ptr;
 }
@@ -58,6 +59,6 @@ allocator arena_allocator_init(arena* arena)
 {
   return (allocator) {
     .ctx = (void*)arena,
-    .callback = arena_alloc
+    .allocate = arena_alloc
   };
 }

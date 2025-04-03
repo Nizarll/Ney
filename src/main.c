@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include "parser.h"
 #include "allocators.h"
 #include "lexer.h"
 
 #define NEWLINE "\n"
 
 char content[] =
-"let i = 0"
+"let i = 0";
 
 void print_token(token* tok)
 {
@@ -14,14 +15,17 @@ void print_token(token* tok)
 }
 
 int main() {
-
   auto arena = arena_init(16 * 1024);
-  auto allocator = arena_allocator_init(arena);
-
+  auto allocator = arena_allocator_init(&arena);
+  parser token_parser = {
+    .alloc = allocator,
+    .i = 0
+  };
   char* characters = allocator_alloc(&allocator, 4);
   lexer _lexer = { 0 };
 
-  auto list = lexer_lex(&_lexer, string(content));
-  foreach(token, list) print_token(token);
-
+  auto tokens = lexer_lex(&_lexer, string(content));
+  foreach(token, tokens) print_token(token);
+  
+  parser_parse(&token_parser, &tokens);
 }

@@ -1,9 +1,10 @@
 #ifndef PARSER
 #define PARSER
 
-#include "types.h"
+#include "utils.h"
 #include "lexer.h"
 #include "ast.h"
+#include "allocators.h"
 
 #include <setjmp.h>
 
@@ -14,13 +15,14 @@ struct _err_context_stack {
 };
 
 struct _parser {
+  allocator alloc;
   struct _err_context_stack err_stack;
   //TODO: other stuff such as namespaces and such
   u64 i;
 };
 
 struct _ast_list {
-  struct _ast** asts;
+  ast** items;
   usz occupied;
   usz total;
 };

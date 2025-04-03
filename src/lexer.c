@@ -3,21 +3,17 @@
 
 #include <ctype.h>
 #include <string.h>
-#include <sys/cdefs.h>
 
 #define ONE_CHAR 1 // no magic numbers allowed
 #define TWO_CHARS 2
 
-static void list_init(token_list* list)
+static void token_list_init(token_list* list)
 {
 #define list_base_size 32
   list->tokens = ney_alloc(list_base_size * sizeof(token));
   list->occupied = 0;
   list->total = list_base_size;
   if (list->tokens == nullptr) ney_err("list allocation failure");
-#ifdef debug
-  if (list == nullptr) ney_err("attempted to insert token to null list");
-#endif
 #undef list_base_size
 }
 
@@ -28,7 +24,7 @@ static void token_list_push(token_list* list, token tok)
   if (list == nullptr) ney_err("attempted to insert token to null list");
 #endif
   if (list->tokens == nullptr) {
-    list_init(list);
+    token_list_init(list);
   } else if (list->occupied >= list->total) {
     list->total = list->total * list_realloc_ratio;
     list->tokens = ney_realloc(list->tokens, list->total * sizeof(token));

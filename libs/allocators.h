@@ -1,13 +1,13 @@
 #ifndef ALLOCATORS
 #define ALLOCATORS
 
-#include "types.h"
+#include "utils.h"
 
 typedef void* (*allocator_func)(usz, void*);
 
 struct _allocator {
   void* ctx;
-  allocator_func callback;
+  allocator_func allocate;
 };
 
 struct _arena {
@@ -27,7 +27,7 @@ typedef struct _arena_list arena_list;
 typedef struct _allocator allocator;
 
 arena arena_init(uint size);
-arena arena_deinit(arena* arena);
+void arena_deinit(arena* arena);
 arena_list arena_list_init(uint arena_size, uint num_arenas);
 void arena_list_deinit(arena_list* pool);
 

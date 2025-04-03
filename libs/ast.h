@@ -1,11 +1,6 @@
 #ifndef AST
 #define AST
 
-#include "allocators.h"
-#include "types.h"
-
-typedef dynamic_string dyn_str;
-
 // we use anonymous struct so that the parent struct inherits the same properties
 // example:
 // struct _my_struct {
@@ -23,17 +18,20 @@ typedef dynamic_string dyn_str;
 //struct _ast* if_stmt = make_ast(IF_STATEMENT);
 //ast->condition = other_ast;
 //ast->then_branch = other_then_branch_ast;
+//
 //ast->else_branch = else_branch_ast;
 
-struct _ast {
-  union {
-    //
-    struct {  };
-    struct { void* type; dyn_str name; struct _ast* value; }; // var_decl;
-  };
+#include "allocators.h"
+#include "utils.h"
+#include "lexer.h"
+
+union _ast {
+  //
+  struct {  };
+  struct { void* type; token name; union _ast* value; }; // var_decl;
 };
 
-typedef struct _ast* ast;
+typedef union _ast ast;
 
 ast* make_ast(allocator alloc);
 

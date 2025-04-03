@@ -1,7 +1,7 @@
 #ifndef LEXER
 #define LEXER
 
-#include "types.h"
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 

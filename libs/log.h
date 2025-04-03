@@ -15,19 +15,19 @@
 
 #define END_PRINTF printf(RESET);
 
-#define ney_log(text, ...)                       \
-  printf(NEY_LOG_PREFIX text ## __VA_ARGS__ "\n") \
+#define ney_log(text, ...)                          \
+  printf(NEY_LOG_PREFIX text  "\n", ##__VA_ARGS__)   \
   END_PRINTF
 
-#define ney_err(text, ...)                        \
-{                                                  \
-  printf(NEY_ERR_PREFIX text ## __VA_ARGS__ "\n");  \
-  END_PRINTF                                         \
-  exit(EXIT_FAILURE);                                 \
+#define ney_err(text, ...)                          \
+{                                                    \
+  printf(NEY_ERR_PREFIX text "\n", ##__VA_ARGS__);    \
+  END_PRINTF                                           \
+  exit(EXIT_FAILURE);                                   \
 }
 
-#define ney_warn(text, ...)                      \
-  printf(NEY_WARN_PREFIX text ## __VA_ARGS__"\n") \
+#define ney_warn(text, ...)                          \
+  printf(NEY_WARN_PREFIX text "\n", ## __VA_ARGS__)   \
   END_PRINTF
 
 #endif // !LOGGER
