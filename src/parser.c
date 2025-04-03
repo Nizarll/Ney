@@ -13,15 +13,15 @@
     ney_err("did not find any error context to jump to");      \
   longjmp(*err_ctx, 1)                                          \
 
-#define PARSER_CONSUME_OR_ERR(parser, list, tkind, error)  \
-{                                                           \
-  if (parser_current_tkind(parser, list) != tkind) {         \
-    PARSER_JMP_BACK(parser);                                  \
-  }                                                            \
-  parser_inc(parser);                                           \
+#define PARSER_CONSUME_OR_ERR(parser, list, tkind, ...)  \
+{                                                         \
+  if (parser_current_tkind(parser, list) != tkind) {       \
+    PARSER_JMP_BACK(parser);                                \
+  }                                                          \
+  parser_inc(parser);                                         \
 }
 
-#define PARSER_CONSUME_MATCH_OR_ERR(parser, list, tkind, match_str, error)                                   \
+#define PARSER_CONSUME_MATCH_OR_ERR(parser, list, tkind, match_str, ...)                                     \
 {                                                                                                             \
   if (parser_current_tkind(parser, list) != tkind or (not parser_match(parser, list, string(match_str)))) {    \
     PARSER_JMP_BACK(parser);                                                                                    \
@@ -29,18 +29,24 @@
   parser_inc(parser);                                                                                             \
 }
 
-#define PARSER_EXPECT_OR_ERR(token, parser, list, kind, error)  \
-{                                                                \
-  if (parser_current_tkind(parser, list) != kind) {               \
-    PARSER_JMP_BACK(parser);                                       \
-  }                                                                 \
-  token = parser_current_tok(parser, list);                          \
+#define PARSER_EXPECT_OR_ERR(token, parser, list, kind, ...)  \
+{                                                              \
+  if (parser_current_tkind(parser, list) != kind) {             \
+    PARSER_JMP_BACK(parser);                                     \
+  }                                                               \
+  token = parser_current_tok(parser, list);                        \
 }
 
-#define PARSER_EXPECT_CONSUME(token, parser, list, kind, error)  \
-{                                                                 \
-  PARSER_EXPECT_OR_ERR(token, parser, list, kind, error);          \
-  parser_inc(parser);                                               \
+#define PARSER_EXPECT_CONSUME(token, parser, list, kind, ...)  \
+{                                                               \
+  PARSER_EXPECT_OR_ERR(token, parser, list, kind, error);        \
+  parser_inc(parser);                                             \
+}
+
+#define PARSER_CONSUME(token, parser, list)  \
+{                                             \
+  token = parser_current_tok(parser, list);    \
+  parser_inc(parser);                           \
 }
 
 #define NEY_UNREACHABLE() ney_err("unreachable at %s, line: %d func: %s", __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -116,15 +122,85 @@ void parser_parse_stmt(struct _parser* parser, token_list* tokens, ast_list* ast
   NEY_UNREACHABLE();
 }
 
+ast* parser_parse_expr(struct _parser* parser, token_list* tokens)
+{
+  ast* node = parser_parse_term(parser, tokens);
+  while (
+    not parser_is_tkind(parser, END_OF_FILE) and (
+      parser_current_tkind(parser, tokens, PLUS)  or
+      parser_current_tkind(parser, tokens, MINUS) or
+    )) {
+    ast* temp = make_ast(parser->alloc, AST_BINOP);
+    PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
+    temp->left = node;
+    temp->right = parser_parse_term(parser, tokens);
+    node = temp;
+  }
+  return node;
+}
+
+ast* parser_parse_term(struct _parser* parser, token_list* tokens)
+{
+  ast* node = parser_parse_factor(parser, tokens);
+  while (
+    not parser_is_tkind(parser, END_OF_FILE) and (
+      parser_current_tkind(parser, tokens, MUL)  or
+      parser_current_tkind(parser, tokens, DIV) or
+    )) {
+    ast* temp = make_ast(parser->alloc, AST_BINOP);
+    PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
+    temp->left = node;
+    temp->right = parser_parse_factor(parser, tokens);
+    node = temp;
+  }
+  return node;
+}
+
+ast* parser_parse_factor(struct _parser* parser, token_list* tokens)
+{
+  ast* node;
+
+  if (parser_current_tkind(parser, list) == END_OF_FILE)
+    return nullptr;
+
+  ast* node = parser_parse_factor(parser, tokens);
+  if (parser_is_function_proto(parser, tokens)) {
+    node = make_ast(parser->alloc, AST_FUNC_CALL);
+    //TODO: separate this into its own func
+    PARSER_CONSUME(temp->func_name, parser, tokens); // eat current token and return it
+    PARSER_EXPECT_CONSUME(OPENPAREN, parser, tokens, "expected opening parenthesis after function name");
+    
+    ast* args = make_ast(parser->alloc, AST_FUNC_CALL_ARGS);
+    while(
+      not parser_current_tkind(parser, tokens) == END_OF_FILE and
+      not current_tkind(parser, tokens) == CLOSEPAREN
+    ) {
+      ast* arg = parser_parse_expr(parser, tokens);
+      LIST_PUSH(args->arguments, arg);
+    }
+    return node;
+  }
+
+  if (parser_current_tkind(parser, tokens) == IDENTIFIER) {
+    node = make_ast(parser->alloc, AST_VAR_REF); // variable name;
+    PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
+    return node;
+  }
+
+  gg
+
+}
+
 //-------------------- Error context functions (for establishing safe point and going back to safepoints):
-//
+
 void pop_err_ctx(err_context_stack* err_stack)
 {
   err_stack->cursor--;
 }
 
 jmp_buf* push_err_ctx(err_context_stack* err_stack)
-{//TODO: maybe switch this from dynamic memory to allocator based memory
+{
+//TODO: maybe switch this from dynamic memory to allocator based memory
 //to reduce footprint, fragmentation and causes of program fatal crashes
 //in case of allocation failures !
 //

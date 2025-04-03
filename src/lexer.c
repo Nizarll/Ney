@@ -100,7 +100,7 @@ token_list lexer_lex(struct _lexer* lexer, any_string view)
     case '\t': case '\v': case '\r': case '\n': case ' ':
       lexer_inc(lexer, view);
       break;
-    case '\0': lexer_push_token(lexer, &list,view.ptr, END_OF_FILE, ONE_CHAR); break;
+    case '\0':lexer_push_token(lexer, &list,view.ptr, END_OF_FILE, ONE_CHAR); break;
     case '+': lexer_push_token(lexer, &list, view.ptr, PLUS, ONE_CHAR); break;
     case '-': lexer_push_token(lexer, &list, view.ptr, MINUS, ONE_CHAR); break;
     case '/': lexer_push_token(lexer, &list, view.ptr, DIV, ONE_CHAR); break;
