@@ -18,7 +18,7 @@ int main() {
   auto arena = arena_init(16 * 1024);
   auto allocator = arena_allocator_init(&arena);
   parser token_parser = {
-    .alloc = allocator,
+    .alloc = ,
     .i = 0
   };
   char* characters = allocator_alloc(&allocator, 4);
