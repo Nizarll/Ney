@@ -1,7 +1,7 @@
 CC = clang
 CFLAGS = -Wall -I ./libs -std=c23 -g3  -Ddebug
 
-sources = src/main.c src/ast.c src/lexer.c src/parser.c
+sources = src/main.c src/ast.c src/lexer.c src/parser.c src/allocators.c
 target = bin/ney
 objects_dir = obj
 objects = $(sources:src/%.c=$(objects_dir)/%.o)
