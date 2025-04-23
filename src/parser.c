@@ -7,6 +7,7 @@
 //TODO: push error string and stuff after jumping to an err_ctx
 // also add functions for addign 
 
+//TODO: use __VA_ARGS__ as a error string and push errors with it or some shit
 #define PARSER_JMP_BACK(parser)                             \
   jmp_buf* err_ctx = err_ctx_back_ptr(&parser->err_stack);   \
    if (err_ctx == nullptr)                                    \
@@ -19,6 +20,12 @@
     PARSER_JMP_BACK(parser);                                \
   }                                                          \
   parser_inc(parser);                                         \
+}
+
+#define PARSER_CONSUME(token, parser, list)  \
+{                                             \
+  token = parser_current_tok(parser, list);    \
+  parser_inc(parser);                           \
 }
 
 #define PARSER_CONSUME_MATCH_OR_ERR(parser, list, tkind, match_str, ...)                                     \
@@ -43,18 +50,13 @@
   parser_inc(parser);                                             \
 }
 
-#define PARSER_CONSUME(token, parser, list)  \
-{                                             \
-  token = parser_current_tok(parser, list);    \
-  parser_inc(parser);                           \
-}
-
 #define NEY_UNREACHABLE() ney_err("unreachable at %s, line: %d func: %s", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 //-------------------- Inline Prototypes:
 
 static __always_inline token parser_current_tok(struct _parser* parser, token_list* list);
 static __always_inline token_kind parser_current_tkind(struct _parser* parser, token_list* list);
+static __always_inline bool parser_is_tkind(struct _parser* parser, token_list* list, token_kind kind);
 static __always_inline bool parser_match(struct _parser* parser, token_list* list, any_string str);
 static __always_inline bool parser_on_safepoint(struct _parser* parser, token_list* list);
 static __always_inline void parser_inc(struct _parser* parser);
@@ -126,10 +128,10 @@ ast* parser_parse_expr(struct _parser* parser, token_list* tokens)
 {
   ast* node = parser_parse_term(parser, tokens);
   while (
-    not parser_is_tkind(parser, END_OF_FILE) and (
-      parser_current_tkind(parser, tokens, PLUS)  or
-      parser_current_tkind(parser, tokens, MINUS) or
-    )) {
+    not parser_is_tkind(parser, tokens, END_OF_FILE) and (
+      parser_is_tkind(parser, tokens, PLUS)  or
+      parser_is_tkind(parser, tokens, MINUS))
+  ) {
     ast* temp = make_ast(parser->alloc, AST_BINOP);
     PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
     temp->left = node;
@@ -143,10 +145,9 @@ ast* parser_parse_term(struct _parser* parser, token_list* tokens)
 {
   ast* node = parser_parse_factor(parser, tokens);
   while (
-    not parser_is_tkind(parser, END_OF_FILE) and (
-      parser_current_tkind(parser, tokens, MUL)  or
-      parser_current_tkind(parser, tokens, DIV) or
-    )) {
+    not parser_is_tkind(parser, tokens, END_OF_FILE) and (
+      parser_is_tkind(parser, tokens, MUL)  or
+      parser_is_tkind(parser, tokens, DIV))) {
     ast* temp = make_ast(parser->alloc, AST_BINOP);
     PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
     temp->left = node;
@@ -158,37 +159,48 @@ ast* parser_parse_term(struct _parser* parser, token_list* tokens)
 
 ast* parser_parse_factor(struct _parser* parser, token_list* tokens)
 {
-  ast* node;
+  ast* node = nullptr;
 
-  if (parser_current_tkind(parser, list) == END_OF_FILE)
+  if (parser_current_tkind(parser, tokens) == END_OF_FILE)
     return nullptr;
 
-  ast* node = parser_parse_factor(parser, tokens);
-  if (parser_is_function_proto(parser, tokens)) {
+  ast* temp = parser_parse_factor(parser, tokens);
+  if (parser_is_func_proto(parser, tokens)) {
     node = make_ast(parser->alloc, AST_FUNC_CALL);
     //TODO: separate this into its own func
-    PARSER_CONSUME(temp->func_name, parser, tokens); // eat current token and return it
-    PARSER_EXPECT_CONSUME(OPENPAREN, parser, tokens, "expected opening parenthesis after function name");
+    token func_name_tok;
+    PARSER_CONSUME(func_name_tok, parser, tokens); // eat current token and return it
     
+    node->func_name = (dynamic_string) {
+      (char*)func_name_tok.view,
+      func_name_tok.span.len
+    };
+    
+    token tok;
+    PARSER_EXPECT_CONSUME(tok , parser,  tokens, OPENPAREN, "expected opening parenthesis after function name");
     ast* args = make_ast(parser->alloc, AST_FUNC_CALL_ARGS);
     while(
-      not parser_current_tkind(parser, tokens) == END_OF_FILE and
-      not current_tkind(parser, tokens) == CLOSEPAREN
+      not parser_is_tkind(parser, tokens, END_OF_FILE) and
+      not parser_is_tkind(parser, tokens, CLOSEPAREN)
     ) {
       ast* arg = parser_parse_expr(parser, tokens);
-      LIST_PUSH(args->arguments, arg);
+      LIST_PUSH(args, arg);
     }
     return node;
   }
 
   if (parser_current_tkind(parser, tokens) == IDENTIFIER) {
-    node = make_ast(parser->alloc, AST_VAR_REF); // variable name;
+    node = make_ast(parser->alloc, AST_VAR_NAME); // variable name;
     PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
     return node;
   }
+  
+  return node;
+}
 
-  gg
-
+bool parser_is_func_proto(struct _parser* parser, token_list* tokens)
+{
+  return false; //TODO: do this bullshit
 }
 
 //-------------------- Error context functions (for establishing safe point and going back to safepoints):
@@ -240,6 +252,11 @@ static __always_inline token parser_current_tok(struct _parser* parser, token_li
 static __always_inline token_kind parser_current_tkind(struct _parser* parser, token_list* list)
 {
   return parser_current_tok(parser, list).kind;
+}
+
+static __always_inline bool parser_is_tkind(struct _parser* parser, token_list* list, token_kind kind)
+{
+  return (parser_current_tkind(parser, list) == kind);
 }
 
 static __always_inline bool parser_match(struct _parser* parser, token_list* list, any_string str)

@@ -18,7 +18,7 @@ void* arena_alloc(usz size, void* ctx)
   return ptr;
 }
 
-arena arena_init(uint size)
+arena arena_init(usz size)
 {
   void* buffer = malloc(size);
 

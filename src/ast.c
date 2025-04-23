@@ -1,6 +1,8 @@
 #include "ast.h"
 
-ast* make_ast(allocator alloc)
+ast* make_ast(allocator alloc, ast_kind kind)
 {
-  return alloc.allocate(sizeof(ast), alloc.ctx);
+  ast* node = alloc.allocate(sizeof(ast), alloc.ctx);
+  node->kind = kind;
+  return node;
 }
