@@ -97,6 +97,7 @@ static ast* parser_parse_stmt(struct _parser* parser, token_list* tokens)
     return parser_parse_block(parser, tokens);
   }
 
+  PARSER_CONSUME_OR_ERR(parser, tokens, OPENPAREN, "Expected '(' after 'if'");
   ast* expr = parser_parse_expr(parser, tokens);
   if (expr) {
     ast* stmt = make_ast(parser->alloc, AST_EXPR_STMT);
@@ -107,6 +108,44 @@ static ast* parser_parse_stmt(struct _parser* parser, token_list* tokens)
     }
 
     return stmt;
+  }
+
+  PARSER_CONSUME_OR_ERR(parser, tokens, CLOSEPAREN, "Expected ')' after if condition");
+  ast* then_branch = parser_parse_stmt(parser, tokens);
+  if (!then_branch) {
+    PARSER_JMP_BACK(parser, "Expected statement after if condition");
+  }
+
+  ast* root_if = make_if_ast(parser->alloc, expr, then_branch, nullptr);
+  ast* current_if = root_if;
+  while (parser_match(parser, tokens, string("else"))) {
+    _consume();
+    if (parser_match(parser, tokens, string("if"))) {
+      _consume();
+      
+      PARSER_CONSUME_OR_ERR(parser, tokens, OPENPAREN, "Expected '(' after 'if'");
+      ast* else_if_condition = parser_parse_expr(parser, tokens);
+      if (!else_if_condition) {
+        PARSER_JMP_BACK(parser, "Expected condition in else if statement");
+      }
+      PARSER_CONSUME_OR_ERR(parser, tokens, CLOSEPAREN, "Expected ')' after else if condition");
+      ast* else_if_then = parser_parse_stmt(parser, tokens);
+      if (!else_if_then) {
+        PARSER_JMP_BACK(parser, "Expected statement after else if condition");
+      }
+      
+      ast* else_if_node = make_if_ast(parser->alloc, else_if_condition, else_if_then, nullptr);
+      current_if->if_stmt.else_branch = else_if_node;
+      current_if = else_if_node;
+      
+    } else {
+      ast* else_stmt = parser_parse_stmt(parser, tokens);
+      if (!else_stmt) {
+        PARSER_JMP_BACK(parser, "Expected statement after 'else'");
+      }
+      current_if->if_stmt.else_branch = else_stmt;
+      break;
+    }
   }
 
   PARSER_JMP_BACK(parser, "Expected statement");
