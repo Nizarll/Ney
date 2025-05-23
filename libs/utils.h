@@ -17,27 +17,27 @@
 // usz occupied;
 // usz total;
 
-#define LIST_BASE_SIZE 32
+#define LIST_BASE_SIZE 64
 #define LIST_REALLOC_RATIO 1.5
 
-#define LIST_INIT(list, type)                                      \
-{                                                                   \
-  list->items = ney_alloc(LIST_BASE_SIZE * sizeof(type));            \
-  list->occupied = 0;                                                 \
-  list->total = LIST_BASE_SIZE;                                        \
-  if (list->items == nullptr) ney_err("list allocation failure");       \
+#define LIST_INIT(list, type)                                        \
+{                                                                     \
+  (list)->items = ney_alloc(LIST_BASE_SIZE * sizeof(type));            \
+  (list)->occupied = 0;                                                 \
+  (list)->total = LIST_BASE_SIZE;                                        \
+  if ((list)->items == nullptr) ney_err("list allocation failure");       \
 }
 
-#define LIST_PUSH(list, item)                                              \
-{                                                                           \
-  if (list->items == nullptr) {                                              \
-    LIST_INIT(list, typeof(item));                                            \
-  } else if (list->occupied >= list->total) {                                  \
-    list->total = list->total * LIST_REALLOC_RATIO;                             \
-    list->items = ney_realloc(list->tokens, list->total * sizeof(token));        \
-    if (list->items == nullptr) ney_err("tokenlist allocation failure");          \
-  }                                                                                \
-  memcpy(list->items + list->occupied++, &list, sizeof(token));                     \
+#define LIST_PUSH(list, item)                                                   \
+{                                                                                \
+  if ((list)->items == nullptr) {                                                 \
+    LIST_INIT((list), typeof(item));                                               \
+  } else if ((list)->occupied >= (list)->total) {                                   \
+    (list)->total = (list)->total * LIST_REALLOC_RATIO;                              \
+    (list)->items = ney_realloc((list)->items, (list)->total * sizeof(token));        \
+    if ((list)->items == nullptr) ney_err("tokenlist allocation failure");             \
+  }                                                                                     \
+  memcpy((list)->items + (list)->occupied++, &item, sizeof(token));                      \
 }
 
 typedef unsigned int uint;

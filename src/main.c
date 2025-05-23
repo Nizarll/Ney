@@ -6,7 +6,8 @@
 #define NEWLINE "\n"
 
 char content[] =
-"let i = 0";
+"let i = 0;"
+;
 
 void print_token(token* tok)
 {
