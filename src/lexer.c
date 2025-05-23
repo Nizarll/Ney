@@ -68,6 +68,21 @@ static void __always_inline lexer_inc(lexer* lexer, any_string view) {
   lexer->i++;
 }
 
+void lexer_lex_str_lit(struct _lexer* lexer, token_list* list, any_string view)
+{
+  u64 start = lexer->i;
+  while (lexer->i < view.len and lexer_current_char(lexer, view) != '"') {
+    if (lexer_current_char(lexer, view) == '\\') {
+      lexer_inc(lexer, view);
+      if (lexer_current_char(lexer, view) == 'n') lexer_inc(lexer, view);
+    }
+    lexer_inc(lexer, view);
+  }
+  u64 end = lexer->i;
+  lexer->i = start;
+  lexer_push_token(lexer, list, view.ptr, STRLIT, end - start);
+}
+
 void lexer_lex_indent_or_numerical(struct _lexer* lexer, token_list* list, any_string view, u32 token_kind)
 {
   u64 start = lexer->i;
@@ -114,6 +129,14 @@ token_list lexer_lex(struct _lexer* lexer, any_string view)
     case ']': lexer_push_token(lexer, &list, view.ptr, CLOSEBRACK, ONE_CHAR); break;
     case '(': lexer_push_token(lexer, &list, view.ptr, OPENPAREN, ONE_CHAR); break;
     case ')': lexer_push_token(lexer, &list, view.ptr, CLOSEPAREN, ONE_CHAR); break;
+    case '<':
+      if (lexer_peek(lexer, view) == '=') lexer_push_token(lexer, &list, view.ptr, LESSEQ, TWO_CHARS);
+      else lexer_push_token(lexer, &list, view.ptr, LESS, ONE_CHAR);
+      break;
+    case '>':
+      if (lexer_peek(lexer, view) == '=') lexer_push_token(lexer, &list, view.ptr, GREATEREQ, TWO_CHARS);
+      else lexer_push_token(lexer, &list, view.ptr, GREATER, ONE_CHAR);
+      break;
     case '|': lexer_push_token(lexer, &list, view.ptr, PIPE, ONE_CHAR); break;
     case '.': lexer_push_token(lexer, &list, view.ptr, DOT, ONE_CHAR); break;
     case '=':
@@ -124,7 +147,8 @@ token_list lexer_lex(struct _lexer* lexer, any_string view)
     default:
         if (current == '_' || isalpha(current)) lexer_lex_indent_or_numerical(lexer, &list, view, IDENTIFIER);
         else if(isdigit(current)) lexer_lex_indent_or_numerical(lexer, &list, view, NUMLIT);
-        else ney_err("unimplemented lexing token");
+        else if(current == '\"') lexer_lex_str_lit(lexer, &list, view);
+        else ney_err("unimplemented lexing token", current);
     }
   }
 #undef current

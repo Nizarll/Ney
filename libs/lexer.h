@@ -24,9 +24,11 @@
   $(LESSEQ),                      \
   $(SYMBOL),                       \
   $(IDENTIFIER),                    \
-  $(NUMLIT),                         \
-  $(SEMICOL),                         \
-  $(GREATER),                          \
+  $(STRLIT),                         \
+  $(CHARLIT),                         \
+  $(NUMLIT),                           \
+  $(SEMICOL),                           \
+  $(GREATER),                           \
   $(OPENBRACK),                         \
   $(MUL),                                \
   $(COMMA),                               \

@@ -10,6 +10,7 @@
 jmp_buf* err_ctx = err_ctx_back_ptr(&parser->err_stack);   \
 if (err_ctx == nullptr)                                     \
   ney_err("did not find any error context to jump to");      \
+  ney_log(__VA_ARGS__);\
 longjmp(*err_ctx, 1)
 
 #define PARSER_CONSUME_OR_ERR(parser, list, tkind, ...)  \
@@ -97,26 +98,58 @@ static ast* parser_parse_stmt(struct _parser* parser, token_list* tokens)
     return parser_parse_block(parser, tokens);
   }
 
-  PARSER_CONSUME_OR_ERR(parser, tokens, OPENPAREN, "Expected '(' after 'if'");
-  ast* expr = parser_parse_expr(parser, tokens);
-  if (expr) {
-    ast* stmt = make_ast(parser->alloc, AST_EXPR_STMT);
-    stmt->expr_stmt.expression = expr;
+ 
+  NEY_UNREACHABLE();
+  return nullptr;
+}
 
-    if (_is_tok(SEMICOL)) {
-      _consume();
+static ast* parser_parse_var_decl(struct _parser* parser, token_list* tokens)
+{
+  _consume();
+
+  token name = _current_tok();
+  _consume();
+
+  ast* initializer = nullptr;
+
+  if (_is_tok(EQUAL)) {
+    _consume();
+    initializer = parser_parse_expr(parser, tokens);
+    if (!initializer) {
+      PARSER_JMP_BACK(parser, "Expected expression after '=' in variable declaration");
     }
-
-    return stmt;
   }
 
+  ney_log("current tkind: %s", TokenKindStrings[_current_tkind()].ptr);
+
+  PARSER_CONSUME_OR_ERR(parser, tokens, SEMICOL, "Expected semicolon at line end");
+  return make_var_decl_ast(parser->alloc, name, initializer);
+}
+
+static ast* parser_parse_if_stmt(struct _parser* parser, token_list* tokens)
+{
+  _consume();
+
+  ney_log("current tkind: %s", TokenKindStrings[_current_tkind()].ptr);
+  PARSER_CONSUME_OR_ERR(parser, tokens, OPENPAREN, "Expected '(' after 'if'");
+
+  ney_log("current tkind: %s", TokenKindStrings[_current_tkind()].ptr);
+  ast* condition = parser_parse_expr(parser, tokens);
+  if (!condition) {
+    ney_log("not a condition");
+    PARSER_JMP_BACK(parser, "Expected condition in if statement");
+  }
+
+  ney_log("current tkind: %s", TokenKindStrings[_current_tkind()].ptr);
+
   PARSER_CONSUME_OR_ERR(parser, tokens, CLOSEPAREN, "Expected ')' after if condition");
+
   ast* then_branch = parser_parse_stmt(parser, tokens);
   if (!then_branch) {
     PARSER_JMP_BACK(parser, "Expected statement after if condition");
   }
 
-  ast* root_if = make_if_ast(parser->alloc, expr, then_branch, nullptr);
+  ast* root_if = make_if_ast(parser->alloc, condition, then_branch, nullptr);
   ast* current_if = root_if;
   while (parser_match(parser, tokens, string("else"))) {
     _consume();
@@ -148,59 +181,7 @@ static ast* parser_parse_stmt(struct _parser* parser, token_list* tokens)
     }
   }
 
-  PARSER_JMP_BACK(parser, "Expected statement");
-  return nullptr;
-}
-
-static ast* parser_parse_var_decl(struct _parser* parser, token_list* tokens)
-{
-  _consume();
-
-  PARSER_CONSUME_OR_ERR(parser, tokens, IDENTIFIER, "Expected variable name after 'let'");
-  token name = _current_tok();
-  _consume();
-
-  ast* initializer = nullptr;
-  if (_is_tok(EQUAL)) {
-    _consume();
-    initializer = parser_parse_expr(parser, tokens);
-    if (!initializer) {
-      PARSER_JMP_BACK(parser, "Expected expression after '=' in variable declaration");
-    }
-  }
-
-  PARSER_CONSUME_OR_ERR(parser, tokens, IDENTIFIER, "Expected semicolon at line end");
-  return make_var_decl_ast(parser->alloc, name, initializer);
-}
-
-static ast* parser_parse_if_stmt(struct _parser* parser, token_list* tokens)
-{
-  _consume();
-
-  PARSER_CONSUME_OR_ERR(parser, tokens, OPENPAREN, "Expected '(' after 'if'");
-
-  ast* condition = parser_parse_expr(parser, tokens);
-  if (!condition) {
-    PARSER_JMP_BACK(parser, "Expected condition in if statement");
-  }
-
-  PARSER_CONSUME_OR_ERR(parser, tokens, CLOSEPAREN, "Expected ')' after if condition");
-
-  ast* then_branch = parser_parse_stmt(parser, tokens);
-  if (!then_branch) {
-    PARSER_JMP_BACK(parser, "Expected statement after if condition");
-  }
-
-  ast* else_branch = nullptr;
-  if (parser_match(parser, tokens, string("else"))) {
-    _consume(); // consume 'else'
-    else_branch = parser_parse_stmt(parser, tokens);
-    if (!else_branch) {
-      PARSER_JMP_BACK(parser, "Expected statement after 'else'");
-    }
-  }
-
-  return make_if_ast(parser->alloc, condition, then_branch, else_branch);
+  return root_if;
 }
 
 static ast* parser_parse_block(struct _parser* parser, token_list* tokens)
