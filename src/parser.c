@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "ast.h"
 #include "lexer.h"
 #include "log.h"
 #include <setjmp.h>
@@ -19,36 +20,23 @@
   if (parser_current_tkind(parser, list) != tkind) {       \
     PARSER_JMP_BACK(parser);                                \
   }                                                          \
-  parser_inc(parser);                                         \
+  _consume();                                                 \
 }
 
 #define PARSER_CONSUME(token, parser, list)  \
 {                                             \
   token = parser_current_tok(parser, list);    \
-  parser_inc(parser);                           \
+  _consume();                                   \
 }
 
-#define PARSER_CONSUME_MATCH_OR_ERR(parser, list, tkind, match_str, ...)                                     \
-{                                                                                                             \
-  if (parser_current_tkind(parser, list) != tkind or (not parser_match(parser, list, string(match_str)))) {    \
-    PARSER_JMP_BACK(parser);                                                                                    \
-  }                                                                                                              \
-  parser_inc(parser);                                                                                             \
-}
 
-#define PARSER_EXPECT_OR_ERR(token, parser, list, kind, ...)  \
-{                                                              \
-  if (parser_current_tkind(parser, list) != kind) {             \
-    PARSER_JMP_BACK(parser);                                     \
-  }                                                               \
-  token = parser_current_tok(parser, list);                        \
-}
-
-#define PARSER_EXPECT_CONSUME(token, parser, list, kind, ...)  \
-{                                                               \
-  PARSER_EXPECT_OR_ERR(token, parser, list, kind, error);        \
-  parser_inc(parser);                                             \
-}
+#define _ast_peek_back(k, ...) (asts->items[(ast->occupied __VA_OPT__( - __VA_ARGS__)) > 0 ? (ast->occupied __VA_OPT__( - __VA_ARGS__)) : 0])
+#define _current_tok() parser_current_tok(parser, tokens)
+#define _current_tkind() parser_current_tkind(parser, tokens)
+#define _is_tok(kind) parser_is_tok(parser, tokens, kind)
+#define _consume() parser_inc(parser)
+#define _peek(...) (tokens->tokens[parser->i __VA_OPT__(+ __VA_ARGS__)])
+#define _peek_kind(k, ...) (_peek(__VA_ARGS__).kind == k)
 
 #define NEY_UNREACHABLE() ney_err("unreachable at %s, line: %d func: %s", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -56,11 +44,12 @@
 
 static __always_inline token parser_current_tok(struct _parser* parser, token_list* list);
 static __always_inline token_kind parser_current_tkind(struct _parser* parser, token_list* list);
-static __always_inline bool parser_is_tkind(struct _parser* parser, token_list* list, token_kind kind);
+static __always_inline bool parser_is_tok(struct _parser* parser, token_list* list, token_kind kind);
 static __always_inline bool parser_match(struct _parser* parser, token_list* list, any_string str);
 static __always_inline bool parser_on_safepoint(struct _parser* parser, token_list* list);
-static __always_inline void parser_inc(struct _parser* parser);
 static void parser_sync_to_safepoint(struct _parser* parser, token_list* list);
+static __always_inline void parser_inc(struct _parser* parser);
+
 
 //-------------------- Non Inline functions:
 
@@ -93,15 +82,34 @@ ast_list parser_parse(struct _parser* parser, token_list* tokens)
   return asts;
 }
 
+void parser_parse_ifsmt(struct _parser* parser, token_list* tokens, ast_list* asts)
+{
+  if (parser_match(parser, tokens, string("if"))) {
+  
+    return;
+  }
+  
+  if (parser_match(parser, tokens, string("if"))) {
+  
+    return;
+  }
+
+  if (parser_match(parser, tokens, string("else"))) {
+    
+    return;
+  }
+}
+
 void parser_parse_var_decl(struct _parser* parser, token_list* tokens, ast_list* asts)
 {
   PARSER_CONSUME_OR_ERR(parser, tokens, IDENTIFIER, "expected let in declaration statement");
+  
   token name;
-
   allocator allocator = {0};
   ast* decl = make_ast(parser->alloc);
 
-  PARSER_EXPECT_CONSUME(name, parser, tokens, IDENTIFIER, "expected a name identifier after let keyword in variable declaration");
+  name = parser_current_tok(parser, tokens);
+  PARSER_CONSUME_OR_ERR(parser, tokens, IDENTIFIER, "expected a name identifier after let keyword in variable declaration");
   decl->name = name;
 
   LIST_PUSH(asts, ast);
@@ -109,9 +117,10 @@ void parser_parse_var_decl(struct _parser* parser, token_list* tokens, ast_list*
   if (parser_current_tkind(parser, tokens) != EQUAL) {
     //TODO: parse for semicolon and return but im too lazy
   }
-  parser_inc(parser); // we already know that there is an equal here
-  parser_inc(parser);// yeah i gotta parse expressions but im too lazy TODO:
-  parser_inc(parser);
+
+  _consume(); // we already know that there is an equal here
+  _consume();// yeah i gotta parse expressions but im too lazy TODO:
+  _consume();
 }
 
 void parser_parse_stmt(struct _parser* parser, token_list* tokens, ast_list* asts)
@@ -128,10 +137,10 @@ ast* parser_parse_expr(struct _parser* parser, token_list* tokens)
 {
   ast* node = parser_parse_term(parser, tokens);
   while (
-    not parser_is_tkind(parser, tokens, END_OF_FILE) and (
-      parser_is_tkind(parser, tokens, PLUS)  or
-      parser_is_tkind(parser, tokens, MINUS))
-  ) {
+    not _is_tok(END_OF_FILE) and (
+        _is_tok(PLUS)  or
+        _is_tok(MINUS)
+    )) {
     ast* temp = make_ast(parser->alloc, AST_BINOP);
     PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
     temp->left = node;
@@ -145,9 +154,10 @@ ast* parser_parse_term(struct _parser* parser, token_list* tokens)
 {
   ast* node = parser_parse_factor(parser, tokens);
   while (
-    not parser_is_tkind(parser, tokens, END_OF_FILE) and (
-      parser_is_tkind(parser, tokens, MUL)  or
-      parser_is_tkind(parser, tokens, DIV))) {
+    not parser_is_tok(parser, tokens, END_OF_FILE) and (
+      parser_is_tok(parser, tokens, MUL)  or
+      parser_is_tok(parser, tokens, DIV)
+    )) {
     ast* temp = make_ast(parser->alloc, AST_BINOP);
     PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
     temp->left = node;
@@ -160,49 +170,51 @@ ast* parser_parse_term(struct _parser* parser, token_list* tokens)
 ast* parser_parse_factor(struct _parser* parser, token_list* tokens)
 {
   ast* node = nullptr;
+  if (_is_tok(END_OF_FILE)) return node;
 
-  if (parser_current_tkind(parser, tokens) == END_OF_FILE)
-    return nullptr;
-
-  ast* temp = parser_parse_factor(parser, tokens);
   if (parser_is_func_proto(parser, tokens)) {
+    token func_name_tok = _current_tok();
+    _consume();
     node = make_ast(parser->alloc, AST_FUNC_CALL);
-    //TODO: separate this into its own func
-    token func_name_tok;
-    PARSER_CONSUME(func_name_tok, parser, tokens); // eat current token and return it
-    
     node->func_name = (dynamic_string) {
       (char*)func_name_tok.view,
       func_name_tok.span.len
     };
-    
-    token tok;
-    PARSER_EXPECT_CONSUME(tok , parser,  tokens, OPENPAREN, "expected opening parenthesis after function name");
+    _consume();
     ast* args = make_ast(parser->alloc, AST_FUNC_CALL_ARGS);
-    while(
-      not parser_is_tkind(parser, tokens, END_OF_FILE) and
-      not parser_is_tkind(parser, tokens, CLOSEPAREN)
-    ) {
+
+    while(not _is_tok(END_OF_FILE) and not _is_tok(CLOSEPAREN)) {
       ast* arg = parser_parse_expr(parser, tokens);
       LIST_PUSH(args, arg);
+      PARSER_CONSUME_OR_ERR(
+        parser,
+        tokens,
+        IDENTIFIER,
+        "expected a comma separator after function call argument"
+      );
     }
     return node;
   }
 
-  if (parser_current_tkind(parser, tokens) == IDENTIFIER) {
-    node = make_ast(parser->alloc, AST_VAR_NAME); // variable name;
-    PARSER_CONSUME(temp->operator, parser, tokens); // eat current token and return it
-    return node;
+  auto ast_kind = AST_NONE;
+  if (_is_tok(IDENTIFIER)) {
+    ast_kind = AST_LVALUE;
+  } else if (_is_tok(NUMLIT)) {
+    ast_kind = AST_RVALUE;
+  } else {
+    NEY_UNREACHABLE();
   }
-  
+  node = make_ast(parser->alloc, AST_LVALUE);
+  node->tok = _current_tok();
+  _consume();
   return node;
 }
 
 bool parser_is_func_proto(struct _parser* parser, token_list* tokens)
 {
-  return false; //TODO: do this bullshit
+  return _is_tok(IDENTIFIER) && _peek_kind(OPENPAREN); //TODO: do this bullshit
 }
-
+ 
 //-------------------- Error context functions (for establishing safe point and going back to safepoints):
 
 void pop_err_ctx(err_context_stack* err_stack)
@@ -212,10 +224,7 @@ void pop_err_ctx(err_context_stack* err_stack)
 
 jmp_buf* push_err_ctx(err_context_stack* err_stack)
 {
-//TODO: maybe switch this from dynamic memory to allocator based memory
-//to reduce footprint, fragmentation and causes of program fatal crashes
-//in case of allocation failures !
-//
+//TODO: i should switch this to using the contiguous parser's allocator to use contiguous memory:
 // maybe a task for futur me since im fucking lazy
   if (err_stack->cursor == 0) {
     err_stack->total = LIST_BASE_SIZE;
@@ -254,7 +263,7 @@ static __always_inline token_kind parser_current_tkind(struct _parser* parser, t
   return parser_current_tok(parser, list).kind;
 }
 
-static __always_inline bool parser_is_tkind(struct _parser* parser, token_list* list, token_kind kind)
+static __always_inline bool parser_is_tok(struct _parser* parser, token_list* list, token_kind kind)
 {
   return (parser_current_tkind(parser, list) == kind);
 }
@@ -285,5 +294,5 @@ static __always_inline void parser_inc(struct _parser* parser)
 static void parser_sync_to_safepoint(struct _parser* parser, token_list* list)
 {
   while (parser->i < list->occupied && not parser_on_safepoint(parser, list))
-    parser_inc(parser);
+    _consume();
 }

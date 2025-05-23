@@ -10,7 +10,7 @@ char content[] =
 
 void print_token(token* tok)
 {
-  if (tok == nullptr || tok->view == nullptr) return;
+  if (not tok or not tok->view) return;
   printf("%.*s %s\n", tok->span.len, tok->view, TokenKindStrings[tok->kind].ptr);
 }
 
@@ -18,7 +18,7 @@ int main() {
   auto arena = arena_init(16 * 1024);
   auto allocator = arena_allocator_init(&arena);
   parser token_parser = {
-    .alloc = ,
+    .alloc = allocator,
     .i = 0
   };
   char* characters = allocator_alloc(&allocator, 4);
@@ -26,6 +26,6 @@ int main() {
 
   auto tokens = lexer_lex(&_lexer, string(content));
   foreach(token, tokens) print_token(token);
-  
+ 
   parser_parse(&token_parser, &tokens);
 }

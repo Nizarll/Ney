@@ -94,4 +94,10 @@ typedef struct _span span;
 typedef struct _location location;
 typedef struct _dynamic_string dynamic_string;
 
+#define _FIRST( FIRST, ... ) FIRST 
+#define FIRST( ... )__VA_OPT__( _FIRST( __VA_ARGS__ ) )
+#define UNPACK( ... )__VA_ARGS__ 
+#define NOP(...) 
+#define __NO_OPT__(...) FIRST( __VA_OPT__( NOP, ) UNPACK )
+
 #endif // !UTILS

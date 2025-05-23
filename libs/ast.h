@@ -25,14 +25,67 @@
 #include "utils.h"
 #include "lexer.h"
 
-union _ast {
-  //
-  struct {  };
-  struct { void* type; token name; union _ast* value; }; // var_decl;
+#define AST_KIND($)  \
+$(NONE),              \
+$(BINOP),              \
+$(FUNC_CALL),           \
+$(IF_STATEMENT),         \
+$(EXPR),                  \
+$(VAR_NAME),               \
+$(FUNC_CALL_ARGS),          \
+$(RVALUE),                   \
+$(LVALUE),                    \
+$(UNARY)
+
+#define _CAT(A, B) A ## B
+#define CAT(A, B) _CAT(A, B)
+#define ENUMIZE_AST(A) CAT(AST_, A)
+
+enum _ast_kind {
+  AST_KIND(ENUMIZE_AST),
+  AST_TYPES_MAX
 };
 
-typedef union _ast ast;
+struct _ast {
+  enum _ast_kind kind;
+  union {
+    struct { void* type; token name; struct _ast* value; }; // var_decl;
+    
+    struct {
+      struct _ast* left;
+      struct _ast* right;
+      token operator;
+    }; // expression  binary operator;
+    //
+    struct {
+      struct _ast* node; //TODO: add type member
+      token tok;
+    }; // expression unary operator;
+      
+    struct {
+      struct _ast* items;
+      usz occupied;
+      usz total;
+    }; // function arguments vector; or might be reused for other list items
 
-ast* make_ast(allocator alloc);
+    struct {
+      dynamic_string func_name;
+      
+    }; // function call;
+    
+  };
+};
 
+typedef struct _ast ast;
+typedef enum _ast_kind ast_kind;
+
+#define make_ast(allocator, ...) __VA_OPT__(make_ast(allocator, __VA_ARGS__))  \
+                                __NO_OPT__(__VA_ARGS__)(make_ast(allocator, 0))
+
+ast* make_ast(allocator alloc, ast_kind kind);
+
+#undef CAT
+#undef _CAT
+#undef ENUMIZE_AST
+#undef AST_TYPES
 #endif // !AST
